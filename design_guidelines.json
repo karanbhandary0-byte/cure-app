@@ -1,0 +1,195 @@
+{
+  "app_name": "CareLoop",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A clean, highly readable, and reassuring medical workspace that balances dense clinical data with calm, patient-friendly interfaces.",
+  "color": {
+    "light": {
+      "surface": "#FFFFFF",
+      "onSurface": "#111827",
+      "surfaceSecondary": "#F3F4F6",
+      "onSurfaceSecondary": "#374151",
+      "surfaceTertiary": "#E5E7EB",
+      "onSurfaceTertiary": "#4B5563",
+      "surfaceInverse": "#111827",
+      "onSurfaceInverse": "#FFFFFF",
+      "brand": "#0073E6",
+      "brandPrimary": "#0073E6",
+      "onBrandPrimary": "#FFFFFF",
+      "brandSecondary": "#0059B2",
+      "onBrandSecondary": "#FFFFFF",
+      "brandTertiary": "#E6F0FD",
+      "onBrandTertiary": "#0059B2",
+      "success": "#10B981",
+      "onSuccess": "#FFFFFF",
+      "warning": "#F59E0B",
+      "onWarning": "#FFFFFF",
+      "error": "#EF4444",
+      "onError": "#FFFFFF",
+      "info": "#3B82F6",
+      "onInfo": "#FFFFFF",
+      "border": "#E5E7EB",
+      "borderStrong": "#D1D5DB",
+      "divider": "#F3F4F6"
+    },
+    "dark": {
+      "surface": "#0F1115",
+      "onSurface": "#F9FAFB",
+      "surfaceSecondary": "#1C1F26",
+      "onSurfaceSecondary": "#D1D5DB",
+      "surfaceTertiary": "#272A30",
+      "onSurfaceTertiary": "#9CA3AF",
+      "surfaceInverse": "#FFFFFF",
+      "onSurfaceInverse": "#111827",
+      "brand": "#3399FF",
+      "brandPrimary": "#3399FF",
+      "onBrandPrimary": "#0F1115",
+      "brandSecondary": "#66B2FF",
+      "onBrandSecondary": "#0F1115",
+      "brandTertiary": "#1A2B4C",
+      "onBrandTertiary": "#99CCFF",
+      "success": "#059669",
+      "onSuccess": "#FFFFFF",
+      "warning": "#D97706",
+      "onWarning": "#FFFFFF",
+      "error": "#DC2626",
+      "onError": "#FFFFFF",
+      "info": "#60A5FA",
+      "onInfo": "#0F1115",
+      "border": "#272A30",
+      "borderStrong": "#374151",
+      "divider": "#1C1F26"
+    }
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Use generous iOS-native rhythms. Do not cramp data on Doctor dashboard; rely on scrolling and visual grouping. Apply large tap targets (44pt).",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 1,
+  "navigation": "bottom_tabs",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use glass on bottom tab bars.",
+      "Use glass on sticky headers over scrolling patient records/appointments.",
+      "Apply frosted glass over featured patient update cards."
+    ],
+    "dont's": [
+      "Never blur body text or dense form fields.",
+      "Avoid heavy blur on the doctor's analytics dashboard to ensure charts remain sharp."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler",
+    "charts": "react-native-chart-kit"
+  },
+  "screens": [
+    {
+      "name": "RoleSelector",
+      "purpose": "A welcoming entry screen to separate the Doctor and Patient portals.",
+      "states": {
+        "loading": "Spinner in primary brand color",
+        "empty": "N/A",
+        "error": "Standard alert or toast"
+      },
+      "layout": "Full-bleed background image with vertical gradient scrim (transparent to surfaceInverse). Two large primary 'pill' or 'lg' radius cards at the bottom for 'I am a Doctor' and 'I am a Patient'. High-contrast typography over the dark scrim."
+    },
+    {
+      "name": "DoctorDashboard",
+      "purpose": "Command center for the doctor: today's schedule, quick status controls, and alerts.",
+      "states": {
+        "loading": "Skeleton loading state mimicking the schedule cards and status toggle to avoid layout shift.",
+        "empty": "Illustration of a calendar checkmark with 'No appointments left today.'",
+        "error": "Error banner at the top, retry button below."
+      },
+      "layout": "Sticky Header with greeting and a prominent 'Doctor Status' segmented control or bottom-sheet trigger (Available, Running Late, etc.). Scrollable list of Appointment Cards containing Patient Name, Time, and Status. Use 'brandTertiary' chips for fast-action filters (Upcoming, Completed, Delayed). Use Medical Blue strictly as an accent to avoid 'generic AI' feel."
+    },
+    {
+      "name": "PatientDashboard",
+      "purpose": "A reassuring portal for the patient to view live updates, upcoming visits, and access records.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "Clean medical abstract image with 'No upcoming appointments.'",
+        "error": "Error toast with a 'Reload' button."
+      },
+      "layout": "Top section: Live Doctor Status banner (e.g., 'Dr. Smith is running 15 mins late') inside a glass-morphic or tinted warning container if delayed. Grid of compact cards below for Medical Records, Prescriptions, and Booking. Clear, spacious layout focusing on patient ease-of-use."
+    },
+    {
+      "name": "PatientFeedback",
+      "purpose": "Post-treatment feedback form triggered 24hrs after visit to capture recovery progress.",
+      "states": {
+        "loading": "Skeleton inputs",
+        "empty": "N/A",
+        "error": "Inline validation errors and top error banner"
+      },
+      "layout": "Full-screen modal/sheet. Large, readable typography for 'How are you feeling?'. A horizontal 1-10 severity slider with dynamic color/icon updates (green to red or smiley to sad). Sticky primary 'Submit Feedback' CTA at the bottom inside KeyboardAvoidingView."
+    },
+    {
+      "name": "DoctorAnalytics",
+      "purpose": "Data-heavy screen showing follow-up rates, daily counts, and success rates.",
+      "states": {
+        "loading": "Skeleton charts",
+        "empty": "Empty state illustration with 'Not enough data yet.'",
+        "error": "Chart error state with retry."
+      },
+      "layout": "Single-column scroll layout. Use `react-native-chart-kit` for line/bar charts. Place charts inside `surfaceSecondary` cards with `lg` radius. Metrics should use mono-spaced or large numerical typography for contrast and scanability."
+    }
+  ],
+  "images": {
+    "role_selector_bg": {
+      "url": "https://images.unsplash.com/photo-1593824261342-fd6ee146f73d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwyfHxjbGVhbiUyMG1lZGljYWwlMjBob3NwaXRhbCUyMGludGVyaW9yJTIwYWJzdHJhY3QlMjBibHVyJTIwYmx1ZXxlbnwwfHx8fDE3ODE2MTE0Nzl8MA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1551076805-e1869033e561?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxjbGVhbiUyMG1lZGljYWwlMjBob3NwaXRhbCUyMGludGVyaW9yJTIwYWJzdHJhY3QlMjBibHVyJTIwYmx1ZXxlbnwwfHx8fDE3ODE2MTE0Nzl8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Clean abstract hospital interior blur"
+    },
+    "doctor_avatar_sample": {
+      "url": "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwZG9jdG9yJTIwcG9ydHJhaXQlMjBwcm9mZXNzaW9uYWx8ZW58MHx8fHwxNzgxNjExNDc5fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Professional doctor portrait"
+    },
+    "patient_avatar_sample": {
+      "url": "https://images.unsplash.com/photo-1484863137850-59afcfe05386?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwxfHxwYXRpZW50JTIwcG9ydHJhaXQlMjBoYXBweXxlbnwwfHx8fDE3ODE2MTE0Nzl8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Happy patient portrait"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Implement two separate tab navigators for Doctor and Patient roles.",
+    "Use 'expo-linear-gradient' for the background scrim on the Role Selector screen to guarantee text readability.",
+    "Ensure the 'Doctor Status' control on the DoctorDashboard is visually distinct and prominent, as it dynamically impacts the Patient's view.",
+    "Use 'react-native-chart-kit' for the Doctor Analytics page.",
+    "The Patient Feedback severity slider must update state fluidly (use Reanimated if possible for smooth thumb and color transitions).",
+    "Fallback to 'surfaceSecondary' for blur on low-end Android devices.",
+    "Make sure forms have labels above inputs and submit buttons stick to the bottom via KeyboardAvoidingView.",
+    "The 'medical blue' theme is handled specifically here: do not revert to generic indigo. Use the defined 'brandPrimary' (#0073E6) for CTAs and highlighted info."
+  ]
+}

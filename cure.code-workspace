@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "name": "Frontend (Flutter)",
+      "path": "frontend"
+    },
+    {
+      "name": "Backend (FastAPI)",
+      "path": "backend"
+    }
+  ],
+  "settings": {
+    "dart.flutterSdkPath": "c:\\Users\\kiran\\Downloads\\currrrr1089-main\\currrrr1089-main\\frontend\\flutter",
+    "dart.sdkPath": "c:\\Users\\kiran\\Downloads\\currrrr1089-main\\currrrr1089-main\\frontend\\flutter\\bin\\cache\\dart-sdk"
+  }
+}
