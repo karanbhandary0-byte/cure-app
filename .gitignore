@@ -95,6 +95,9 @@ credentials.json
 .flutter-plugins
 .flutter-plugins-dependencies
 **/build/
-**/flutter/
+/frontend/flutter/
+/cure_ios/flutter/
 *.iml
+!**/ios/Flutter/
+!**/ios/Flutter/**
 
