@@ -8,22 +8,15 @@ on:
 jobs:
   build-ios:
     name: Build iOS IPA
-    runs-on: macos-13
+    runs-on: macos-14
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.0'
           channel: 'stable'
           cache: true
 
@@ -45,3 +38,4 @@ jobs:
         with:
           name: cure-ios-ipa
           path: cure_ios/build/ios/iphoneos/cure_ios_app.ipa
+          retention-days: 7
