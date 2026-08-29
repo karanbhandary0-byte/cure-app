@@ -1,3 +1,5 @@
+$FirebaseSDKVersion = '10.28.0'
+
 # Global iOS platform deployment target
 platform :ios, '15.0'
 
@@ -30,6 +32,13 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
+
+  pod 'FirebaseCore', '10.28.0'
+  pod 'FirebaseCoreInternal', '10.28.0'
+  pod 'FirebaseAuth', '10.28.0'
+  pod 'FirebaseFirestore', '10.28.0'
+  pod 'FirebaseInstallations', '10.28.0'
+  pod 'GoogleUtilities', '7.13.3'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
