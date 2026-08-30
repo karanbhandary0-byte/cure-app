@@ -181,6 +181,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       }
 
+      // Enforce Master Admin Verification Approval
+      final status = (doctor.verificationStatus ?? 'pending').toLowerCase();
+      if (status == "rejected") {
+        await _firebase.signOut();
+        state = state.copyWith(
+          isLoading: false,
+          error: "❌ Access Denied: Your doctor account application has been rejected by the administrator.",
+        );
+        return false;
+      }
+
+      if (status == "pending") {
+        await _firebase.signOut();
+        state = state.copyWith(
+          isLoading: false,
+          error: "⏳ Pending Approval: Your account is currently under review by the administrator. Please wait for verification.",
+        );
+        return false;
+      }
+
       final token = "fb_${doctor.id}";
       await _session.saveSession(token: token, role: "doctor", user: doctor.toJson());
 
@@ -211,6 +231,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final token = res["token"].toString();
         final doctorMap = res["doctor"] as Map<String, dynamic>;
         final doctor = Doctor.fromJson(doctorMap);
+
+        final status = (doctor.verificationStatus ?? 'pending').toLowerCase();
+        if (status == "rejected") {
+          state = state.copyWith(
+            isLoading: false,
+            error: "❌ Access Denied: Your doctor account application has been rejected by the administrator.",
+          );
+          return false;
+        }
+
+        if (status == "pending") {
+          state = state.copyWith(
+            isLoading: false,
+            error: "⏳ Pending Approval: Your account is currently under review by the administrator. Please wait for verification.",
+          );
+          return false;
+        }
 
         await _session.saveSession(token: token, role: "doctor", user: doctorMap);
 
