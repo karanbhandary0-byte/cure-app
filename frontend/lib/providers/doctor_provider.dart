@@ -77,6 +77,11 @@ class DoctorDashboardNotifier extends StateNotifier<DoctorDashboardState> {
       _docSub?.cancel();
       _docSub = _firebase.streamDoctor(currentDoc.id).listen((doc) {
         if (doc != null) {
+          final status = (doc.verificationStatus ?? 'pending').toLowerCase();
+          if (status == "rejected" || status == "pending") {
+            _ref.read(authProvider.notifier).logout();
+            return;
+          }
           state = state.copyWith(doctor: doc, isLoading: false);
         }
       });
