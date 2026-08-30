@@ -102,8 +102,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> adminAuth({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, error: null);
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPassword = password.trim();
+
+    // Direct Instant Master Admin Validation
+    if (cleanEmail == "admin@cure.app" && cleanPassword == "admin123") {
+      final adminMap = {
+        "id": "admin_master_001",
+        "email": "admin@cure.app",
+        "name": "Master Administrator",
+        "role": "admin",
+      };
+      final admin = AdminUser.fromJson(adminMap);
+      await _session.saveSession(token: "admin_master_token_secure_2026", role: "admin", user: adminMap);
+
+      state = AuthState(
+        status: AuthStatus.authenticatedAdmin,
+        role: "admin",
+        token: "admin_master_token_secure_2026",
+        currentUser: admin,
+        isLoading: false,
+      );
+      return true;
+    }
+
     try {
-      final res = await _api.post("/auth/admin/login", body: {"email": email, "password": password}, auth: false);
+      final res = await _api.post("/auth/admin/login", body: {"email": cleanEmail, "password": password}, auth: false);
       final token = res["token"].toString();
       final adminMap = res["admin"] as Map<String, dynamic>;
       final admin = AdminUser.fromJson(adminMap);
@@ -119,26 +143,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return true;
     } catch (err) {
-      // Fallback for Master Admin credentials on Web / Standalone mode
-      if (email.trim().toLowerCase() == "admin@cure.app" && password == "admin123") {
-        final adminMap = {
-          "id": "admin_master_001",
-          "email": "admin@cure.app",
-          "name": "Master Administrator",
-        };
-        final admin = AdminUser.fromJson(adminMap);
-        await _session.saveSession(token: "admin_master_token_secure", role: "admin", user: adminMap);
-
-        state = AuthState(
-          status: AuthStatus.authenticatedAdmin,
-          role: "admin",
-          token: "admin_master_token_secure",
-          currentUser: admin,
-          isLoading: false,
-        );
-        return true;
-      }
-
       state = state.copyWith(
         isLoading: false,
         error: "Invalid admin email or password.",
