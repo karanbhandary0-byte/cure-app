@@ -240,6 +240,14 @@ class FirebaseService {
     });
   }
 
+  /// Verify or update doctor verification status in Cloud Firestore
+  Future<void> verifyDoctor(String doctorId, String status) async {
+    await _db.collection('doctors').doc(doctorId).update({
+      'verification_status': status,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Stream Appointments for Doctor (Real-Time Live Queue)
   Stream<List<Appointment>> streamDoctorAppointments(String doctorId) {
     return _db

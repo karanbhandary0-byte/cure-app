@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,7 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = true;
+  StreamSubscription? _doctorsSub;
 
   Map<String, dynamic> _stats = {
     "total_doctors": 0,
@@ -34,18 +36,61 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _listenToDoctors();
     _fetchData();
   }
 
   @override
   void dispose() {
+    _doctorsSub?.cancel();
     _tabController.dispose();
     super.dispose();
   }
 
+  void _listenToDoctors() {
+    final fb = ref.read(firebaseServiceProvider);
+    _doctorsSub = fb.streamAllDoctors().listen((docs) {
+      if (mounted && docs.isNotEmpty) {
+        setState(() {
+          _allDoctors = docs;
+          _pendingDoctors = docs.where((d) => (d.verificationStatus ?? 'pending') == "pending").toList();
+          _stats = {
+            ..._stats,
+            "total_doctors": docs.length,
+            "pending_doctors": docs.where((d) => (d.verificationStatus ?? 'pending') == "pending").length,
+            "verified_doctors": docs.where((d) => (d.verificationStatus ?? 'pending') == "verified").length,
+          };
+          _isLoading = false;
+        });
+      }
+    }, onError: (_) {});
+  }
+
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
+    final fb = ref.read(firebaseServiceProvider);
     final api = ref.read(apiServiceProvider);
+
+    // 1. Fetch from Cloud Firestore (where doctors sign up)
+    try {
+      final fbDocs = await fb.fetchDoctors();
+      if (fbDocs.isNotEmpty && mounted) {
+        setState(() {
+          _allDoctors = fbDocs;
+          _pendingDoctors = fbDocs.where((d) => (d.verificationStatus ?? 'pending') == "pending").toList();
+          _stats = {
+            "total_doctors": fbDocs.length,
+            "pending_doctors": fbDocs.where((d) => (d.verificationStatus ?? 'pending') == "pending").length,
+            "verified_doctors": fbDocs.where((d) => (d.verificationStatus ?? 'pending') == "verified").length,
+            "total_patients": _stats["total_patients"] ?? 0,
+            "total_appointments": _stats["total_appointments"] ?? 0,
+          };
+          _isLoading = false;
+        });
+      }
+    } catch (_) {}
+
+    // 2. Also try REST API if available
     try {
       final statsRes = await api.get("/admin/stats") as Map<String, dynamic>;
       final docsRes = await api.get("/admin/doctors") as List;
@@ -60,7 +105,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && _allDoctors.isEmpty) {
         final mockDoctors = [
           Doctor(
             id: "doc_demo_001",
@@ -102,68 +147,64 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
           _pendingDoctors = mockDoctors.where((d) => d.verificationStatus == "pending").toList();
           _isLoading = false;
         });
+      } else if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
 
   Future<void> _verifyDoctor(Doctor doctor, String status) async {
     setState(() => _processingIds.add(doctor.id));
+    final fb = ref.read(firebaseServiceProvider);
     final api = ref.read(apiServiceProvider);
+
+    // Update in Cloud Firestore
+    try {
+      await fb.verifyDoctor(doctor.id, status);
+    } catch (_) {}
+
+    // Update in REST API
     try {
       await api.put("/admin/doctors/${doctor.id}/verify", body: {"verification_status": status});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              status == "verified"
-                  ? "✅ Doctor ${doctor.name} has been verified and is now live!"
-                  : "❌ Application for ${doctor.name} was rejected.",
-            ),
-            backgroundColor: status == "verified" ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-          ),
-        );
-      }
-      await _fetchData();
-    } catch (e) {
-      if (mounted) {
-        final updatedDocs = _allDoctors.map((d) {
-          if (d.id == doctor.id) {
-            return Doctor(
-              id: d.id,
-              name: d.name,
-              specialty: d.specialty,
-              clinicName: d.clinicName,
-              clinicAddress: d.clinicAddress,
-              status: d.status,
-              verificationStatus: status,
-            );
-          }
-          return d;
-        }).toList();
+    } catch (_) {}
 
-        setState(() {
-          _allDoctors = updatedDocs;
-          _pendingDoctors = updatedDocs.where((d) => d.verificationStatus == "pending").toList();
-          _stats = {
-            ..._stats,
-            "pending_doctors": updatedDocs.where((d) => d.verificationStatus == "pending").length,
-            "verified_doctors": updatedDocs.where((d) => d.verificationStatus == "verified").length,
-          };
-        });
+    if (mounted) {
+      final updatedDocs = _allDoctors.map((d) {
+        if (d.id == doctor.id) {
+          return Doctor(
+            id: d.id,
+            name: d.name,
+            specialty: d.specialty,
+            clinicName: d.clinicName,
+            clinicAddress: d.clinicAddress,
+            status: d.status,
+            verificationStatus: status,
+          );
+        }
+        return d;
+      }).toList();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              status == "verified"
-                  ? "✅ Doctor ${doctor.name} has been verified and is now live!"
-                  : "❌ Application for ${doctor.name} was rejected.",
-            ),
-            backgroundColor: status == "verified" ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+      setState(() {
+        _allDoctors = updatedDocs;
+        _pendingDoctors = updatedDocs.where((d) => (d.verificationStatus ?? 'pending') == "pending").toList();
+        _stats = {
+          ..._stats,
+          "pending_doctors": updatedDocs.where((d) => (d.verificationStatus ?? 'pending') == "pending").length,
+          "verified_doctors": updatedDocs.where((d) => (d.verificationStatus ?? 'pending') == "verified").length,
+        };
+        _processingIds.remove(doctor.id);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == "verified"
+                ? "✅ Doctor ${doctor.name} has been verified and is now live!"
+                : "❌ Application for ${doctor.name} was rejected.",
           ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _processingIds.remove(doctor.id));
+          backgroundColor: status == "verified" ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+        ),
+      );
     }
   }
 
