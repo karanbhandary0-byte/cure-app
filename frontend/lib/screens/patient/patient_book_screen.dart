@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +22,7 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
   List<Doctor> doctors = [];
   bool isLoading = true;
   Doctor? selectedDoctor;
+  StreamSubscription? _doctorsSub;
 
   int dayOffset = 0;
   String chosenSlot = "";
@@ -43,30 +45,50 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
   @override
   void initState() {
     super.initState();
+    _listenToVerifiedDoctors();
     _loadDoctors();
   }
 
   @override
   void dispose() {
+    _doctorsSub?.cancel();
     _searchController.dispose();
     _reasonController.dispose();
     super.dispose();
   }
 
+  void _listenToVerifiedDoctors() async {
+    final fb = ref.read(firebaseServiceProvider);
+    await fb.ensureAuth();
+    _doctorsSub = fb.streamAllDoctors().listen((allDocs) {
+      if (mounted) {
+        final verifiedOnly = allDocs
+            .where((d) => (d.verificationStatus ?? 'pending').toLowerCase() == 'verified')
+            .toList();
+        setState(() {
+          doctors = verifiedOnly;
+          isLoading = false;
+        });
+      }
+    }, onError: (_) {});
+  }
+
   Future<void> _loadDoctors() async {
     setState(() => isLoading = true);
+    final fb = ref.read(firebaseServiceProvider);
+    await fb.ensureAuth();
+
     try {
-      final fb = ref.read(firebaseServiceProvider);
       final fbDocs = await fb.fetchDoctors();
-      final verifiedDocs = fbDocs.where((d) => (d.verificationStatus ?? 'pending').toLowerCase() == 'verified').toList();
-      if (verifiedDocs.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            doctors = verifiedDocs;
-            isLoading = false;
-          });
-        }
-        return;
+      final verifiedDocs = fbDocs
+          .where((d) => (d.verificationStatus ?? 'pending').toLowerCase() == 'verified')
+          .toList();
+      if (mounted) {
+        setState(() {
+          doctors = verifiedDocs;
+          isLoading = false;
+        });
+        if (verifiedDocs.isNotEmpty) return;
       }
     } catch (_) {}
 
@@ -86,7 +108,6 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
       }
     } catch (_) {}
 
-    // Fallback demo doctors list if Firestore and API are clean/empty
     if (mounted) {
       setState(() {
         doctors = [
@@ -97,54 +118,7 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
             clinicName: 'Cure Medical Center',
             clinicAddress: 'Bandra West, Mumbai',
             status: 'available',
-            delayMinutes: 0,
-            slotDurationMin: 30,
-            slotCount: 8,
-            slotStartHour: 9,
-          ),
-          Doctor(
-            id: 'doc_demo_2',
-            name: 'Dr. Raj Patel',
-            specialty: 'General Physician',
-            clinicName: 'Health First Clinic',
-            clinicAddress: 'Andheri East, Mumbai',
-            status: 'available',
-            delayMinutes: 0,
-            slotDurationMin: 30,
-            slotCount: 8,
-            slotStartHour: 9,
-          ),
-          Doctor(
-            id: 'doc_demo_3',
-            name: 'Dr. Ananya Roy',
-            specialty: 'Dermatology',
-            clinicName: 'Skin & Care Clinic',
-            clinicAddress: 'Koramangala, Bangalore',
-            status: 'available',
-            delayMinutes: 0,
-            slotDurationMin: 30,
-            slotCount: 8,
-            slotStartHour: 10,
-          ),
-          Doctor(
-            id: 'doc_demo_4',
-            name: 'Dr. Vikram Sharma',
-            specialty: 'Orthopedics',
-            clinicName: 'Bone & Joint Clinic',
-            clinicAddress: 'Connaught Place, Delhi',
-            status: 'available',
-            delayMinutes: 0,
-            slotDurationMin: 30,
-            slotCount: 8,
-            slotStartHour: 9,
-          ),
-          Doctor(
-            id: 'doc_demo_5',
-            name: 'Dr. Priya Mehta',
-            specialty: 'Pediatrics',
-            clinicName: 'Little Smiles Child Clinic',
-            clinicAddress: 'Bandra West, Mumbai',
-            status: 'available',
+            verificationStatus: 'verified',
             delayMinutes: 0,
             slotDurationMin: 30,
             slotCount: 8,
