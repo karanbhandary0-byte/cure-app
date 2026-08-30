@@ -226,6 +226,17 @@ class FirebaseService {
     }).toList();
   }
 
+  /// Fetch a single Doctor profile by ID
+  Future<Doctor?> fetchDoctor(String doctorId) async {
+    final docSnap = await _db.collection('doctors').doc(doctorId).get();
+    if (docSnap.exists && docSnap.data() != null) {
+      final data = Map<String, dynamic>.from(docSnap.data()!);
+      data['id'] = docSnap.id;
+      return Doctor.fromJson(data);
+    }
+    return null;
+  }
+
   /// Stream Doctor Profile & Real-Time Status
   Stream<Doctor?> streamDoctor(String doctorId) {
     return _db.collection('doctors').doc(doctorId).snapshots().map((snap) {

@@ -72,11 +72,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     if (token != null && token.isNotEmpty) {
       if (role == "doctor") {
+        Doctor? doctor = user != null ? Doctor.fromJson(user) : null;
+        if (doctor != null) {
+          try {
+            await _firebase.ensureAuth();
+            final freshDoctor = await _firebase.fetchDoctor(doctor.id);
+            if (freshDoctor != null) {
+              doctor = freshDoctor;
+            }
+          } catch (_) {}
+
+          final status = (doctor.verificationStatus ?? 'pending').toLowerCase();
+          if (status == "rejected" || status == "pending") {
+            await _session.clearSession();
+            await _firebase.signOut();
+            state = AuthState(
+              status: AuthStatus.unauthenticated,
+              error: status == "rejected"
+                  ? "❌ Access Denied: Your doctor account application has been rejected by the administrator."
+                  : "⏳ Pending Approval: Your account is currently under review by the administrator.",
+            );
+            return;
+          }
+        }
+
         state = AuthState(
           status: AuthStatus.authenticatedDoctor,
           role: role,
           token: token,
-          currentUser: user != null ? Doctor.fromJson(user) : null,
+          currentUser: doctor,
         );
         return;
       } else if (role == "patient") {
