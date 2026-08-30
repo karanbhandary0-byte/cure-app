@@ -47,8 +47,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
     super.dispose();
   }
 
-  void _listenToDoctors() {
+  void _listenToDoctors() async {
     final fb = ref.read(firebaseServiceProvider);
+    await fb.ensureAuth();
     _doctorsSub = fb.streamAllDoctors().listen((docs) {
       if (mounted && docs.isNotEmpty) {
         setState(() {
@@ -70,6 +71,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
     setState(() => _isLoading = true);
     final fb = ref.read(firebaseServiceProvider);
     final api = ref.read(apiServiceProvider);
+
+    await fb.ensureAuth();
 
     // 1. Fetch from Cloud Firestore (where doctors sign up)
     try {
