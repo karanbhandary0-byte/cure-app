@@ -58,10 +58,11 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
     try {
       final fb = ref.read(firebaseServiceProvider);
       final fbDocs = await fb.fetchDoctors();
-      if (fbDocs.isNotEmpty) {
+      final verifiedDocs = fbDocs.where((d) => (d.verificationStatus ?? 'pending').toLowerCase() == 'verified').toList();
+      if (verifiedDocs.isNotEmpty) {
         if (mounted) {
           setState(() {
-            doctors = fbDocs;
+            doctors = verifiedDocs;
             isLoading = false;
           });
         }
@@ -72,13 +73,17 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
     try {
       final api = ref.read(apiServiceProvider);
       final res = await api.get("/patient/doctors") as List;
-      if (mounted) {
+      final parsedDocs = res
+          .map((e) => Doctor.fromJson(e as Map<String, dynamic>))
+          .where((d) => (d.verificationStatus ?? 'pending').toLowerCase() == 'verified')
+          .toList();
+      if (mounted && parsedDocs.isNotEmpty) {
         setState(() {
-          doctors = res.map((e) => Doctor.fromJson(e as Map<String, dynamic>)).toList();
+          doctors = parsedDocs;
           isLoading = false;
         });
+        return;
       }
-      return;
     } catch (_) {}
 
     // Fallback demo doctors list if Firestore and API are clean/empty
