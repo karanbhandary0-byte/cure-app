@@ -66,6 +66,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Cure needs camera access so doctors can take photos of patient prescriptions.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cure needs photo library access to upload prescription images.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

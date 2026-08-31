@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
@@ -21,6 +24,9 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
   final _diagController = TextEditingController();
   final _presController = TextEditingController();
   final _followUpController = TextEditingController();
+  Uint8List? _prescriptionImageBytes;
+  String? _prescriptionBase64;
+  bool isPickingImage = false;
   bool isSaving = false;
 
   @override
@@ -31,12 +37,110 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
     super.dispose();
   }
 
+  Future<void> _pickPrescription(ImageSource source) async {
+    try {
+      setState(() => isPickingImage = true);
+      final picker = ImagePicker();
+      final XFile? file = await picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (file != null) {
+        final bytes = await file.readAsBytes();
+        final base64String = "data:image/jpeg;base64,${base64Encode(bytes)}";
+        setState(() {
+          _prescriptionImageBytes = bytes;
+          _prescriptionBase64 = base64String;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error selecting image: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isPickingImage = false);
+    }
+  }
+
+  void _showPrescriptionDialog(BuildContext context, String imageUrlOrBase64, {String? title}) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        Widget imageWidget;
+        if (imageUrlOrBase64.startsWith("data:image")) {
+          final base64Data = imageUrlOrBase64.split(",").last;
+          final bytes = base64Decode(base64Data);
+          imageWidget = Image.memory(bytes, fit: BoxFit.contain);
+        } else {
+          imageWidget = Image.network(
+            imageUrlOrBase64,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Center(child: Text("Could not load image")),
+          );
+        }
+
+        return Dialog(
+          backgroundColor: Colors.black.withOpacity(0.92),
+          insetPadding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      title ?? "Doctor's Prescription Photo",
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: imageWidget,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  "Pinch or drag to zoom in and examine prescription details",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _submitConsultation(String appointmentId) async {
-    if (_diagController.text.trim().isEmpty) return;
+    if (_diagController.text.trim().isEmpty && _prescriptionBase64 == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a diagnosis or attach a prescription photo.")),
+      );
+      return;
+    }
     setState(() => isSaving = true);
-    final diag = _diagController.text.trim();
+    final diag = _diagController.text.trim().isNotEmpty ? _diagController.text.trim() : "Prescription Consultation";
     final pres = _presController.text.trim();
     final followUp = _followUpController.text.trim();
+    final photo = _prescriptionBase64;
 
     try {
       final fb = ref.read(firebaseServiceProvider);
@@ -46,12 +150,17 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         patientId: widget.patientId,
         diagnosis: diag,
         prescription: pres,
+        prescriptionImageUrl: photo,
         followUpInstructions: followUp,
       );
 
       _diagController.clear();
       _presController.clear();
       _followUpController.clear();
+      setState(() {
+        _prescriptionImageBytes = null;
+        _prescriptionBase64 = null;
+      });
 
       ref.invalidate(patientDetailProvider(widget.patientId));
       ref.read(doctorDashboardProvider.notifier).load();
@@ -64,12 +173,17 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         "appointment_id": appointmentId,
         "diagnosis": diag,
         "prescription": pres,
+        "prescription_image_url": photo,
         "follow_up_instructions": followUp,
       });
 
       _diagController.clear();
       _presController.clear();
       _followUpController.clear();
+      setState(() {
+        _prescriptionImageBytes = null;
+        _prescriptionBase64 = null;
+      });
 
       ref.invalidate(patientDetailProvider(widget.patientId));
       ref.read(doctorDashboardProvider.notifier).load();
@@ -226,14 +340,30 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                       decoration: BoxDecoration(
                         color: AppColors.surfaceSecondary,
                         borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: AppColors.brand),
+                        border: Border.all(color: AppColors.brand.withOpacity(0.4)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Add consultation notes",
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                "Add consultation notes",
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.brand.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                ),
+                                child: const Text(
+                                  "Active Visit",
+                                  style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w700, fontSize: 11),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -248,7 +378,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                             key: const Key("diagnosis-input"),
                             controller: _diagController,
                             decoration: InputDecoration(
-                              hintText: "e.g. Viral fever",
+                              hintText: "e.g. Viral fever, Hypertension",
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                               filled: true,
                               fillColor: AppColors.surface,
@@ -256,7 +386,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                           ),
 
                           const SizedBox(height: AppSpacing.md),
-                          const Text("Prescription", style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
+                          const Text("Prescription (Text / Notes)", style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           TextField(
                             key: const Key("prescription-input"),
@@ -271,13 +401,122 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                           ),
 
                           const SizedBox(height: AppSpacing.md),
+                          // Prescription Photo Section
+                          const Text(
+                            "Prescription Photo (Physical Slip / Handwritten)",
+                            style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 6),
+
+                          if (_prescriptionImageBytes != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => _showPrescriptionDialog(context, _prescriptionBase64!, title: "Captured Prescription Photo"),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                                      child: Image.memory(
+                                        _prescriptionImageBytes!,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.md),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.check_circle, color: Color(0xFF10B981), size: 16),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              "Prescription Photo Attached",
+                                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF10B981)),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        GestureDetector(
+                                          onTap: () => _showPrescriptionDialog(context, _prescriptionBase64!, title: "Captured Prescription Photo"),
+                                          child: const Text(
+                                            "Tap to preview full size",
+                                            style: TextStyle(color: AppColors.brand, fontSize: 12, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                    tooltip: "Remove photo",
+                                    onPressed: () {
+                                      setState(() {
+                                        _prescriptionImageBytes = null;
+                                        _prescriptionBase64 = null;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: isPickingImage ? null : () => _pickPrescription(ImageSource.camera),
+                                    icon: const Icon(Icons.camera_alt_outlined, size: 18, color: AppColors.brand),
+                                    label: const Text(
+                                      "Take Photo",
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.brand),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      side: const BorderSide(color: AppColors.brand),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                      backgroundColor: AppColors.surface,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: isPickingImage ? null : () => _pickPrescription(ImageSource.gallery),
+                                    icon: const Icon(Icons.photo_library_outlined, size: 18, color: AppColors.onSurface),
+                                    label: const Text(
+                                      "Upload Slip",
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      side: const BorderSide(color: AppColors.border),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                      backgroundColor: AppColors.surface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          const SizedBox(height: AppSpacing.md),
                           const Text("Follow-up instructions", style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           TextField(
                             key: const Key("followup-input"),
                             controller: _followUpController,
                             decoration: InputDecoration(
-                              hintText: "Rest, drink fluids…",
+                              hintText: "Rest, drink fluids, review after 5 days…",
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                               filled: true,
                               fillColor: AppColors.surface,
@@ -364,8 +603,9 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                         else
                           ...state.consultations.map((c) {
                             final followUp = c.followUpInstructions;
+                            final photoUrl = c.prescriptionImageUrl;
                             return Container(
-                              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                              margin: const EdgeInsets.only(bottom: AppSpacing.md),
                               padding: const EdgeInsets.all(AppSpacing.md),
                               decoration: BoxDecoration(
                                 color: AppColors.surfaceSecondary,
@@ -374,13 +614,64 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(DateFormat.yMMMd().format(c.createdAt), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(DateFormat.yMMMd().format(c.createdAt), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                      if (photoUrl != null && photoUrl.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.brand.withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.image, color: AppColors.brand, size: 12),
+                                              SizedBox(width: 3),
+                                              Text("Photo attached", style: TextStyle(color: AppColors.brand, fontSize: 10, fontWeight: FontWeight.bold)),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
                                   Text("Diagnosis: ${c.diagnosis}", style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 4),
-                                  Text(c.prescription, style: const TextStyle(color: AppColors.muted)),
-                                  if (followUp != null && followUp.isNotEmpty) ...[
+                                  if (c.prescription.isNotEmpty) ...[
                                     const SizedBox(height: 4),
+                                    Text(c.prescription, style: const TextStyle(color: AppColors.muted)),
+                                  ],
+                                  if (photoUrl != null && photoUrl.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    InkWell(
+                                      onTap: () => _showPrescriptionDialog(context, photoUrl, title: "Prescription for ${c.diagnosis}"),
+                                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                                          border: Border.all(color: AppColors.brand.withOpacity(0.3)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.document_scanner, color: AppColors.brand, size: 20),
+                                            const SizedBox(width: 8),
+                                            const Expanded(
+                                              child: Text(
+                                                "View Original Prescription Slip Photo",
+                                                style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w600, fontSize: 13),
+                                              ),
+                                            ),
+                                            const Icon(Icons.zoom_in, color: AppColors.brand, size: 18),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  if (followUp != null && followUp.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
                                     Text(
                                       "Follow-up: $followUp",
                                       style: const TextStyle(color: AppColors.brand, fontStyle: FontStyle.italic),

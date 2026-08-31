@@ -316,6 +316,7 @@ class FirebaseService {
     required String patientId,
     required String diagnosis,
     required String prescription,
+    String? prescriptionImageUrl,
     String? followUpInstructions,
   }) async {
     final docRef = _db.collection('consultations').doc();
@@ -326,6 +327,7 @@ class FirebaseService {
       'patient_id': patientId,
       'diagnosis': diagnosis,
       'prescription': prescription,
+      'prescription_image_url': prescriptionImageUrl,
       'follow_up_instructions': followUpInstructions ?? '',
       'created_at': DateTime.now().toIso8601String(),
     };

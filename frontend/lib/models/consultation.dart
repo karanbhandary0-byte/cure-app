@@ -17,6 +17,7 @@ class Consultation {
   final String appointmentId;
   final String diagnosis;
   final String prescription;
+  final String? prescriptionImageUrl;
   final String? followUpInstructions;
   final DateTime createdAt;
   final Doctor? doctor;
@@ -26,6 +27,7 @@ class Consultation {
     required this.appointmentId,
     required this.diagnosis,
     required this.prescription,
+    this.prescriptionImageUrl,
     this.followUpInstructions,
     required this.createdAt,
     this.doctor,
@@ -37,6 +39,7 @@ class Consultation {
       appointmentId: json['appointment_id']?.toString() ?? '',
       diagnosis: json['diagnosis']?.toString() ?? '',
       prescription: json['prescription']?.toString() ?? '',
+      prescriptionImageUrl: json['prescription_image_url']?.toString(),
       followUpInstructions: json['follow_up_instructions']?.toString(),
       createdAt: _parseDateTime(json['created_at']),
       doctor: json['doctor'] != null ? Doctor.fromJson(json['doctor']) : null,
@@ -49,6 +52,7 @@ class Consultation {
       'appointment_id': appointmentId,
       'diagnosis': diagnosis,
       'prescription': prescription,
+      'prescription_image_url': prescriptionImageUrl,
       'follow_up_instructions': followUpInstructions,
       'created_at': createdAt.toIso8601String(),
       'doctor': doctor?.toJson(),
