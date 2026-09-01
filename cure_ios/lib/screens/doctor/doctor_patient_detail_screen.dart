@@ -412,13 +412,33 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                           ),
                           const SizedBox(height: 6),
 
-                          if (_prescriptionImageBytes != null) ...[
+                          if (isPickingImage) ...[
                             Container(
                               padding: const EdgeInsets.all(AppSpacing.md),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(AppRadius.md),
-                                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.5)),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text("Opening camera / image selector...", style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w600, fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          ] else if (_prescriptionImageBytes != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.6), width: 1.5),
                               ),
                               child: Row(
                                 children: [
@@ -428,8 +448,8 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                                       borderRadius: BorderRadius.circular(AppRadius.sm),
                                       child: Image.memory(
                                         _prescriptionImageBytes!,
-                                        width: 60,
-                                        height: 60,
+                                        width: 64,
+                                        height: 64,
                                         fit: BoxFit.cover,
                                       ),
                                     ),
@@ -449,12 +469,26 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 2),
+                                        const SizedBox(height: 4),
                                         GestureDetector(
                                           onTap: () => _showPrescriptionDialog(context, _prescriptionBase64!, title: "Captured Prescription Photo"),
-                                          child: const Text(
-                                            "Tap to preview full size",
-                                            style: TextStyle(color: AppColors.brand, fontSize: 12, fontWeight: FontWeight.w600),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.brand.withOpacity(0.12),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.zoom_in, color: AppColors.brand, size: 14),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  "Tap to preview full size",
+                                                  style: TextStyle(color: AppColors.brand, fontSize: 11, fontWeight: FontWeight.bold),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -477,18 +511,19 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                             Row(
                               children: [
                                 Expanded(
-                                  child: OutlinedButton.icon(
+                                  child: ElevatedButton.icon(
                                     onPressed: isPickingImage ? null : () => _pickPrescription(ImageSource.camera),
-                                    icon: const Icon(Icons.camera_alt_outlined, size: 18, color: AppColors.brand),
+                                    icon: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
                                     label: const Text(
-                                      "Take Photo",
-                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.brand),
+                                      "Click Picture",
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
                                     ),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      side: const BorderSide(color: AppColors.brand),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.brand,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      elevation: 0,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                      backgroundColor: AppColors.surface,
                                     ),
                                   ),
                                 ),
@@ -496,14 +531,14 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     onPressed: isPickingImage ? null : () => _pickPrescription(ImageSource.gallery),
-                                    icon: const Icon(Icons.photo_library_outlined, size: 18, color: AppColors.onSurface),
+                                    icon: const Icon(Icons.upload_file, size: 18, color: AppColors.onSurface),
                                     label: const Text(
-                                      "Upload Slip",
-                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+                                      "Upload Photo",
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface),
                                     ),
                                     style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      side: const BorderSide(color: AppColors.border),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      side: const BorderSide(color: AppColors.border, width: 1.5),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                                       backgroundColor: AppColors.surface,
                                     ),
