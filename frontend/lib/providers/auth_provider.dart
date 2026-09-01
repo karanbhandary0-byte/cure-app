@@ -82,7 +82,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             }
           } catch (_) {}
 
-          final status = (doctor.verificationStatus ?? 'pending').toLowerCase();
+          final status = (doctor?.verificationStatus ?? 'pending').toLowerCase();
           if (status == "rejected" || status == "pending") {
             await _session.clearSession();
             await _firebase.signOut();
