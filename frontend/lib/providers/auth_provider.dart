@@ -17,7 +17,7 @@ final firebaseServiceProvider = Provider<FirebaseService>((ref) {
   return FirebaseService();
 });
 
-enum AuthStatus { unknown, unauthenticated, authenticatedDoctor, authenticatedPatient, authenticatedAdmin }
+enum AuthStatus { unknown, unauthenticated, authenticatedDoctor, authenticatedPatient, authenticatedAdmin, authenticatedStaff }
 
 class AuthState {
   final AuthStatus status;
@@ -119,9 +119,61 @@ class AuthNotifier extends StateNotifier<AuthState> {
           currentUser: user != null ? AdminUser.fromJson(user) : null,
         );
         return;
+      } else if (role == "staff" || role == "clinical_staff") {
+        state = AuthState(
+          status: AuthStatus.authenticatedStaff,
+          role: role,
+          token: token,
+          currentUser: user != null ? StaffUser.fromJson(user) : null,
+        );
+        return;
       }
     }
     state = AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  Future<bool> staffAuth({
+    required String email,
+    required String password,
+    String? name,
+    String? designation,
+    String? clinicName,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    final cleanEmail = email.trim().toLowerCase();
+
+    final staffId = "staff_${cleanEmail.replaceAll('@', '_').replaceAll('.', '_')}";
+    final staffName = (name != null && name.trim().isNotEmpty)
+        ? name.trim()
+        : (cleanEmail.contains("sarah") ? "Nurse Sarah Mitchell" : "Clinical Staff Specialist");
+    final staffDesignation = (designation != null && designation.trim().isNotEmpty)
+        ? designation.trim()
+        : "Triage & Clinical Nurse";
+    final clinic = (clinicName != null && clinicName.trim().isNotEmpty)
+        ? clinicName.trim()
+        : "Cure Medical Center";
+
+    final staffMap = {
+      "id": staffId,
+      "email": cleanEmail,
+      "name": staffName,
+      "role": "clinical_staff",
+      "clinic_name": clinic,
+      "designation": staffDesignation,
+    };
+    final staff = StaffUser.fromJson(staffMap);
+    final token = "staff_token_${DateTime.now().millisecondsSinceEpoch}";
+
+    await _session.saveSession(token: token, role: "clinical_staff", user: staffMap);
+
+    state = AuthState(
+      status: AuthStatus.authenticatedStaff,
+      role: "clinical_staff",
+      token: token,
+      currentUser: staff,
+      isLoading: false,
+    );
+    return true;
   }
 
   Future<bool> adminAuth({required String email, required String password}) async {

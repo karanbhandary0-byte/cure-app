@@ -1177,7 +1177,7 @@ class _SlotsModalState extends ConsumerState<_SlotsModal> {
 
   @override
   Widget build(BuildContext context) {
-    final durations = ["10", "15", "20", "30", "45", "60"];
+    final durations = ["5", "10", "15", "20", "30", "45", "60"];
     final counts = ["4", "6", "8", "10", "12", "16", "20"];
     final hours = ["7", "8", "9", "10", "11", "13", "14", "15", "16"];
 

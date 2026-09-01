@@ -136,3 +136,44 @@ class Patient {
     };
   }
 }
+
+class StaffUser {
+  final String id;
+  final String email;
+  final String name;
+  final String role;
+  final String clinicName;
+  final String designation;
+
+  StaffUser({
+    required this.id,
+    required this.email,
+    required this.name,
+    this.role = 'clinical_staff',
+    this.clinicName = 'Cure Clinic',
+    this.designation = 'Triage & Clinical Nurse',
+  });
+
+  factory StaffUser.fromJson(Map<String, dynamic> json) {
+    return StaffUser(
+      id: json['id']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Clinical Staff',
+      role: json['role']?.toString() ?? 'clinical_staff',
+      clinicName: json['clinic_name']?.toString() ?? 'Cure Clinic',
+      designation: json['designation']?.toString() ?? 'Triage & Clinical Nurse',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'name': name,
+      'role': role,
+      'clinic_name': clinicName,
+      'designation': designation,
+    };
+  }
+}
+

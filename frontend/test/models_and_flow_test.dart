@@ -128,5 +128,25 @@ void main() {
       expect(d.delayMinutes, 10);
       expect(d.status, 'available');
     });
+
+    test('StaffUser profile parses name, designation, and clinic safely', () {
+      final s = StaffUser.fromJson({
+        'id': 'staff_1',
+        'email': 'nurse.sarah@cure.app',
+        'name': 'Nurse Sarah Mitchell',
+        'role': 'clinical_staff',
+        'clinic_name': 'Cure Medical Center',
+        'designation': 'Triage & Clinical Specialist',
+      });
+
+      expect(s.id, 'staff_1');
+      expect(s.email, 'nurse.sarah@cure.app');
+      expect(s.name, 'Nurse Sarah Mitchell');
+      expect(s.role, 'clinical_staff');
+      expect(s.clinicName, 'Cure Medical Center');
+      expect(s.designation, 'Triage & Clinical Specialist');
+      expect(s.toJson()['role'], 'clinical_staff');
+    });
   });
 }
+

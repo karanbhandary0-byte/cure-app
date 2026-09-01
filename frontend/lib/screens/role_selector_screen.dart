@@ -82,7 +82,7 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       const Text(
-                        "The complete consultation loop — for doctors and patients.",
+                        "The complete consultation loop — for doctors, staff & patients.",
                         style: TextStyle(
                           color: Color(0xD9FFFFFF),
                           fontSize: 16,
@@ -103,6 +103,16 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
                         title: "I am a Doctor",
                         subtitle: "Manage appointments, records & status",
                         onTap: () => context.go('/auth/doctor-login'),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _RoleCard(
+                        key: const Key("select-staff-button"),
+                        icon: Icons.assignment_ind_outlined,
+                        iconBg: const Color(0xFFCCFBF1),
+                        iconColor: const Color(0xFF0F766E),
+                        title: "Clinical Staff",
+                        subtitle: "Patient check-in, triage vitals & queue flow",
+                        onTap: () => context.go('/auth/staff-login'),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       _RoleCard(

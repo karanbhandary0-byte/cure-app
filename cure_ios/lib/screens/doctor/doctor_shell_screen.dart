@@ -12,6 +12,7 @@ class DoctorShellScreen extends StatelessWidget {
     if (location.startsWith('/doctor/appointments')) return 1;
     if (location.startsWith('/doctor/patients')) return 2;
     if (location.startsWith('/doctor/analytics')) return 3;
+    if (location.startsWith('/doctor/profile')) return 4;
     return 0; // /doctor/dashboard
   }
 
@@ -28,6 +29,9 @@ class DoctorShellScreen extends StatelessWidget {
         break;
       case 3:
         context.go('/doctor/analytics');
+        break;
+      case 4:
+        context.go('/doctor/profile');
         break;
     }
   }
@@ -68,9 +72,14 @@ class DoctorShellScreen extends StatelessWidget {
               icon: Icon(Icons.bar_chart),
               label: 'Insights',
             ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              label: 'Profile & Staff',
+            ),
           ],
         ),
       ),
     );
   }
 }
+

@@ -174,6 +174,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
       final api = ref.read(apiServiceProvider);
       await api.post("/doctor/consultations", body: {
         "appointment_id": apptId,
+        "patient_id": widget.patientId,
         "diagnosis": diag,
         "prescription": pres,
         "prescription_image_url": photo,

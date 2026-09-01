@@ -7,12 +7,15 @@ import '../screens/role_selector_screen.dart';
 import '../screens/auth/doctor_login_screen.dart';
 import '../screens/auth/patient_login_screen.dart';
 import '../screens/auth/admin_login_screen.dart';
+import '../screens/auth/staff_login_screen.dart';
 import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/staff/staff_dashboard_screen.dart';
 import '../screens/doctor/doctor_shell_screen.dart';
 import '../screens/doctor/doctor_dashboard_screen.dart';
 import '../screens/doctor/doctor_appointments_screen.dart';
 import '../screens/doctor/doctor_patients_screen.dart';
 import '../screens/doctor/doctor_analytics_screen.dart';
+import '../screens/doctor/doctor_profile_screen.dart';
 import '../screens/doctor/doctor_patient_detail_screen.dart';
 import '../screens/doctor/doctor_feedback_screen.dart';
 import '../screens/patient/patient_shell_screen.dart';
@@ -53,16 +56,34 @@ class RouterNotifier extends ChangeNotifier {
       return null;
     }
 
+    if (location == '/staff' || location == '/auth/staff-login') {
+      if (status == AuthStatus.authenticatedStaff) {
+        return '/staff/dashboard';
+      }
+      return null;
+    }
+
+    if (location == '/staff/dashboard') {
+      if (status != AuthStatus.authenticatedStaff) {
+        return '/auth/staff-login';
+      }
+      return null;
+    }
+
     if (status == AuthStatus.authenticatedAdmin) {
-      if (location == '/' || location.startsWith('/patient') || location.startsWith('/doctor')) {
+      if (location == '/' || location.startsWith('/patient') || location.startsWith('/doctor') || location.startsWith('/staff')) {
         return '/admin/dashboard';
       }
+    } else if (status == AuthStatus.authenticatedStaff) {
+      if (location == '/' || location.startsWith('/patient') || location.startsWith('/doctor') || location.startsWith('/admin')) {
+        return '/staff/dashboard';
+      }
     } else if (status == AuthStatus.authenticatedDoctor) {
-      if (location == '/' || location.startsWith('/patient')) return '/doctor/dashboard';
+      if (location == '/' || location.startsWith('/patient') || location.startsWith('/staff')) return '/doctor/dashboard';
     } else if (status == AuthStatus.authenticatedPatient) {
-      if (location == '/' || location.startsWith('/doctor')) return '/patient/home';
+      if (location == '/' || location.startsWith('/doctor') || location.startsWith('/staff')) return '/patient/home';
     } else if (status == AuthStatus.unauthenticated) {
-      if (location.startsWith('/doctor') || location.startsWith('/patient')) {
+      if (location.startsWith('/doctor') || location.startsWith('/patient') || location.startsWith('/staff/dashboard')) {
         return '/';
       }
     }
@@ -101,6 +122,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminDashboardScreen(),
       ),
       GoRoute(
+        path: '/auth/staff-login',
+        builder: (context, state) => const StaffLoginScreen(),
+      ),
+      GoRoute(
+        path: '/staff',
+        builder: (context, state) => const StaffLoginScreen(),
+      ),
+      GoRoute(
+        path: '/staff/dashboard',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const StaffDashboardScreen(),
+      ),
+      GoRoute(
         path: '/auth/doctor-login',
         builder: (context, state) => const DoctorLoginScreen(),
       ),
@@ -129,6 +163,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/doctor/analytics',
             builder: (context, state) => const DoctorAnalyticsScreen(),
+          ),
+          GoRoute(
+            path: '/doctor/profile',
+            builder: (context, state) => const DoctorProfileScreen(),
           ),
         ],
       ),
