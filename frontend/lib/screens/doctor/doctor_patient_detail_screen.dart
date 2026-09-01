@@ -129,10 +129,10 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
     );
   }
 
-  void _submitConsultation(String appointmentId) async {
-    if (_diagController.text.trim().isEmpty && _prescriptionBase64 == null) {
+  void _submitConsultation(String? appointmentId) async {
+    if (_diagController.text.trim().isEmpty && _prescriptionBase64 == null && _presController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a diagnosis or attach a prescription photo.")),
+        const SnackBar(content: Text("Please enter a diagnosis, prescription or attach a prescription photo.")),
       );
       return;
     }
@@ -141,11 +141,14 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
     final pres = _presController.text.trim();
     final followUp = _followUpController.text.trim();
     final photo = _prescriptionBase64;
+    final apptId = (appointmentId != null && appointmentId.isNotEmpty)
+        ? appointmentId
+        : 'appt_${widget.patientId}_${DateTime.now().millisecondsSinceEpoch}';
 
     try {
       final fb = ref.read(firebaseServiceProvider);
       await fb.createConsultation(
-        appointmentId: appointmentId,
+        appointmentId: apptId,
         doctorId: ref.read(authProvider).currentUser?.id ?? '',
         patientId: widget.patientId,
         diagnosis: diag,
@@ -170,7 +173,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
     try {
       final api = ref.read(apiServiceProvider);
       await api.post("/doctor/consultations", body: {
-        "appointment_id": appointmentId,
+        "appointment_id": apptId,
         "diagnosis": diag,
         "prescription": pres,
         "prescription_image_url": photo,
@@ -333,43 +336,44 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                   ),
 
                   // Consultation Form
-                  if (upcoming != null) ...[
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceSecondary,
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: AppColors.brand.withOpacity(0.4)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                "Add consultation notes",
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceSecondary,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: AppColors.brand.withOpacity(0.4)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Add consultation notes",
+                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.brand.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(AppRadius.sm),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.brand.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                ),
-                                child: const Text(
-                                  "Active Visit",
-                                  style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w700, fontSize: 11),
-                                ),
+                              child: Text(
+                                upcoming != null ? "Active Visit" : "Prescription & Notes",
+                                style: const TextStyle(color: AppColors.brand, fontWeight: FontWeight.w700, fontSize: 11),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Appointment: ${DateFormat('MMM d, h:mm a').format(upcoming.scheduledAt)}",
-                            style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                          ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          upcoming != null
+                              ? "Appointment: ${DateFormat('MMM d, h:mm a').format(upcoming.scheduledAt)}"
+                              : "Create prescription & medical record note",
+                          style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                        ),
                           const SizedBox(height: AppSpacing.md),
 
                           const Text("Diagnosis", style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
@@ -529,7 +533,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                             height: 48,
                             child: ElevatedButton(
                               key: const Key("save-consultation"),
-                              onPressed: isSaving ? null : () => _submitConsultation(upcoming.id),
+                              onPressed: isSaving ? null : () => _submitConsultation(upcoming?.id),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brand,
                                 foregroundColor: Colors.white,
@@ -543,7 +547,6 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                         ],
                       ),
                     ),
-                  ],
 
                   // Visit History
                   Padding(
