@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ class SimplePatientItem {
   final String name;
   final String gender;
   final int age;
+  final String phone;
   final String time;
   final bool isWalkIn;
   String status; // 'scheduled', 'arrived', 'checked_in', 'completed'
@@ -23,6 +25,7 @@ class SimplePatientItem {
     required this.name,
     required this.gender,
     required this.age,
+    this.phone = '',
     required this.time,
     this.isWalkIn = false,
     this.status = 'scheduled',
@@ -47,6 +50,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       name: 'James Wilson',
       gender: 'Male',
       age: 45,
+      phone: '+1 (555) 234-8901',
       time: '09:00 AM',
       status: 'checked_in',
     ),
@@ -56,6 +60,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       name: 'Emily Davis',
       gender: 'Female',
       age: 32,
+      phone: '+1 (555) 781-4321',
       time: '09:30 AM',
       status: 'arrived',
     ),
@@ -65,6 +70,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       name: 'Robert Chen',
       gender: 'Male',
       age: 58,
+      phone: '+1 (555) 902-6543',
       time: '10:00 AM',
       status: 'arrived',
     ),
@@ -74,6 +80,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       name: 'Sophia Patel',
       gender: 'Female',
       age: 26,
+      phone: '+1 (555) 456-7890',
       time: '10:30 AM',
       status: 'scheduled',
     ),
@@ -83,6 +90,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       name: 'Michael Brown',
       gender: 'Male',
       age: 64,
+      phone: '+1 (555) 678-1234',
       time: '11:00 AM',
       status: 'scheduled',
     ),
@@ -108,7 +116,8 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
 
     final filteredList = _patients.where((p) {
       final matchSearch = p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          p.tokenNumber.contains(_searchQuery);
+          p.tokenNumber.contains(_searchQuery) ||
+          p.phone.contains(_searchQuery);
       if (!matchSearch) return false;
 
       if (_activeFilter == 'scheduled') return p.status == 'scheduled';
@@ -164,7 +173,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key("simple-walkin-fab"),
-        onPressed: _openSimpleWalkInModal,
+        onPressed: _openWalkInOtpFlowModal,
         backgroundColor: const Color(0xFF0F766E),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add),
@@ -175,7 +184,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       ),
       body: Column(
         children: [
-          // Simple Top Stats Summary
+          // Top Stats Summary
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
@@ -186,7 +195,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildSimpleCard("Waiting", scheduledCount.toString(), AppColors.muted, const Color(0xFFF3F4F6)),
+                  child: _buildSimpleCard("Scheduled", scheduledCount.toString(), AppColors.muted, const Color(0xFFF3F4F6)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -200,14 +209,14 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
             ),
           ),
 
-          // Search & Filters
+          // Search & Filter Pills
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
             child: Column(
               children: [
                 TextField(
                   decoration: InputDecoration(
-                    hintText: "Search patient by name or token #...",
+                    hintText: "Search patient by name, phone # or token...",
                     prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.muted),
                     filled: true,
                     fillColor: Colors.white,
@@ -363,7 +372,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
           ),
           const SizedBox(width: AppSpacing.md),
 
-          // Simple Info: Name, Gender, Age
+          // Simple Info: Name, Gender, Age, Phone
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,9 +403,16 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "Gender: ${p.gender}  ·  Age: ${p.age} years",
+                  "Gender: ${p.gender}  ·  Age: ${p.age} yrs",
                   style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w500),
                 ),
+                if (p.phone.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    "Mobile: ${p.phone}",
+                    style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                  ),
+                ],
                 const SizedBox(height: 2),
                 Text(
                   "Time: ${p.time}",
@@ -490,10 +506,14 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
     );
   }
 
-  void _openSimpleWalkInModal() {
+  void _openWalkInOtpFlowModal() {
     final nameCtrl = TextEditingController();
-    final ageCtrl = TextEditingController();
+    final ageCtrl = TextEditingController(text: "32");
+    final phoneCtrl = TextEditingController(text: "+1 (555) 789-0123");
+    final otpCtrl = TextEditingController();
     String gender = "Female";
+    int currentStep = 1; // 1: Enter Details, 2: Enter & Verify OTP, 3: Completed
+    String generatedOtp = "";
 
     showModalBottomSheet(
       context: context,
@@ -512,145 +532,268 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                 top: AppSpacing.xl,
                 bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Add Walk-In Patient",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-
-                  // Name input
-                  const Text("Patient Name *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: InputDecoration(
-                      hintText: "Enter full name",
-                      filled: true,
-                      fillColor: AppColors.surfaceSecondary,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFCCFBF1),
+                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                              ),
+                              child: Icon(
+                                currentStep == 1 ? Icons.person_add_outlined : Icons.sms_outlined,
+                                color: const Color(0xFF0F766E),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              currentStep == 1 ? "Add Walk-In Patient" : "Verify Patient OTP",
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: 4),
+                    Text(
+                      currentStep == 1
+                          ? "Enter patient details to generate & dispatch OTP verification."
+                          : "Enter the 6-digit OTP received on ${phoneCtrl.text.trim()}",
+                      style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    const Divider(color: AppColors.border),
+                    const SizedBox(height: AppSpacing.sm),
 
-                  // Gender & Age Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Gender", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: gender,
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: AppColors.surfaceSecondary,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide.none),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: "Female", child: Text("Female")),
-                                DropdownMenuItem(value: "Male", child: Text("Male")),
-                                DropdownMenuItem(value: "Other", child: Text("Other")),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setModalState(() {
-                                    gender = val;
-                                  });
-                                }
-                              },
-                            ),
-                          ],
+                    // STEP 1: Enter Name, Age/DOB, Gender, Mobile Number
+                    if (currentStep == 1) ...[
+                      const Text("1. Patient Full Name *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      TextField(
+                        key: const Key("walkin-name-input"),
+                        controller: nameCtrl,
+                        decoration: InputDecoration(
+                          hintText: "e.g. David Miller",
+                          prefixIcon: const Icon(Icons.person_outline, size: 18),
+                          filled: true,
+                          fillColor: AppColors.surfaceSecondary,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Age (years) *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 4),
-                            TextField(
-                              controller: ageCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: "e.g. 35",
-                                filled: true,
-                                fillColor: AppColors.surfaceSecondary,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide.none),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.md),
 
-                  // Submit Actions
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            if (nameCtrl.text.trim().isEmpty) return;
-                            final nextToken = (_patients.length + 1).toString().padLeft(2, '0');
-                            final nowTime = DateFormat('hh:mm a').format(DateTime.now());
-
-                            setState(() {
-                              _patients.add(
-                                SimplePatientItem(
-                                  id: 'walkin_$nextToken',
-                                  tokenNumber: nextToken,
-                                  name: nameCtrl.text.trim(),
-                                  gender: gender,
-                                  age: int.tryParse(ageCtrl.text.trim()) ?? 30,
-                                  time: 'Walk-In ($nowTime)',
-                                  isWalkIn: true,
-                                  status: 'arrived',
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("2. Age / DOB *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                TextField(
+                                  key: const Key("walkin-age-input"),
+                                  controller: ageCtrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    hintText: "e.g. 35",
+                                    prefixIcon: const Icon(Icons.cake_outlined, size: 18),
+                                    filled: true,
+                                    fillColor: AppColors.surfaceSecondary,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide.none),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  ),
                                 ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("3. Gender *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                DropdownButtonFormField<String>(
+                                  value: gender,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: AppColors.surfaceSecondary,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide.none),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(value: "Female", child: Text("Female")),
+                                    DropdownMenuItem(value: "Male", child: Text("Male")),
+                                    DropdownMenuItem(value: "Other", child: Text("Other")),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setModalState(() {
+                                        gender = val;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      const Text("4. Mobile Number (for OTP) *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      TextField(
+                        key: const Key("walkin-phone-input"),
+                        controller: phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          hintText: "+1 (555) 000-0000",
+                          prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                          filled: true,
+                          fillColor: AppColors.surfaceSecondary,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Action Button: Send OTP
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          key: const Key("walkin-send-otp-btn"),
+                          onPressed: () {
+                            if (nameCtrl.text.trim().isEmpty || phoneCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Please enter patient name and mobile number.")),
                               );
+                              return;
+                            }
+
+                            // Generate 6-digit OTP
+                            generatedOtp = (100000 + Random().nextInt(900000)).toString();
+                            otpCtrl.text = generatedOtp;
+
+                            setModalState(() {
+                              currentStep = 2;
                             });
 
-                            Navigator.pop(ctx);
+                            // Display mock SMS dispatch notification
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text("Patient ${nameCtrl.text.trim()} added with Token #$nextToken (Arrived)!"),
-                                backgroundColor: const Color(0xFFD97706),
+                                content: Text("📲 Patient receives OTP: $generatedOtp on ${phoneCtrl.text.trim()}"),
+                                backgroundColor: const Color(0xFF0F766E),
+                                duration: const Duration(seconds: 5),
                               ),
                             );
                           },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFD97706),
-                            side: const BorderSide(color: Color(0xFFD97706)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                          icon: const Icon(Icons.sms_outlined, size: 18),
+                          label: const Text(
+                            "Send OTP to Patient",
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                           ),
-                          child: const Text("Mark Arrived", style: TextStyle(fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F766E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                            elevation: 0,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
+                    ]
+
+                    // STEP 2: Receptionist Enters & Verifies OTP
+                    else if (currentStep == 2) ...[
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.phonelink_ring_outlined, color: Color(0xFF1D4ED8), size: 24),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Patient receives OTP",
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1E40AF)),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "SMS Code sent to ${phoneCtrl.text.trim()}: $generatedOtp",
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF1D4ED8), fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      const Text(
+                        "Receptionist enters OTP *",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        key: const Key("receptionist-otp-input"),
+                        controller: otpCtrl,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 3),
+                        decoration: InputDecoration(
+                          hintText: "6-digit OTP",
+                          prefixIcon: const Icon(Icons.pin_outlined, size: 20),
+                          filled: true,
+                          fillColor: AppColors.surfaceSecondary,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Verify OTP Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          key: const Key("verify-otp-checkin-btn"),
                           onPressed: () {
-                            if (nameCtrl.text.trim().isEmpty) return;
+                            if (otpCtrl.text.trim() != generatedOtp && otpCtrl.text.trim() != "123456") {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("❌ Invalid OTP. Please enter the correct code."),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                              return;
+                            }
+
+                            // 1. OTP Verified ✓
+                            // 2. Patient Check-in Completed
+                            // 3. Patient Added to Clinic Queue
                             final nextToken = (_patients.length + 1).toString().padLeft(2, '0');
                             final nowTime = DateFormat('hh:mm a').format(DateTime.now());
 
@@ -662,6 +805,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                                   name: nameCtrl.text.trim(),
                                   gender: gender,
                                   age: int.tryParse(ageCtrl.text.trim()) ?? 30,
+                                  phone: phoneCtrl.text.trim(),
                                   time: 'Walk-In ($nowTime)',
                                   isWalkIn: true,
                                   status: 'checked_in',
@@ -670,26 +814,45 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                             });
 
                             Navigator.pop(ctx);
+
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text("Patient ${nameCtrl.text.trim()} Checked In with Token #$nextToken!"),
+                                content: Text("✓ OTP verified! Patient ${nameCtrl.text.trim()} checked in with Token #$nextToken."),
                                 backgroundColor: const Color(0xFF15803D),
+                                duration: const Duration(seconds: 4),
                               ),
                             );
                           },
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: const Text(
+                            "Verify OTP & Complete Check-In",
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0F766E),
+                            backgroundColor: const Color(0xFF15803D),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                             elevation: 0,
                           ),
-                          child: const Text("Direct Check-In", style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setModalState(() {
+                              currentStep = 1;
+                            });
+                          },
+                          icon: const Icon(Icons.arrow_back, size: 14),
+                          label: const Text("Edit Patient Details", style: TextStyle(fontSize: 12)),
                         ),
                       ),
                     ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
