@@ -171,6 +171,8 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
       _isLoadingVisits = true;
     });
 
+    List<PatientVisitRecord> visits = [];
+
     // 1. Check locally recorded consultations with uploaded images
     try {
       final localConsults = ref.read(recordedConsultationsProvider).where((c) =>
