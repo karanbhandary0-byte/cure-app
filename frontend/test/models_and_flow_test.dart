@@ -4,6 +4,7 @@ import 'package:cure_flutter/models/consultation.dart';
 import 'package:cure_flutter/models/feedback.dart';
 import 'package:cure_flutter/models/analytics.dart';
 import 'package:cure_flutter/models/user.dart';
+import 'package:cure_flutter/models/slot.dart';
 
 void main() {
   group('Model Serialization & Null Safety Tests', () {
@@ -147,6 +148,55 @@ void main() {
       expect(s.designation, 'Triage & Clinical Specialist');
       expect(s.toJson()['role'], 'clinical_staff');
     });
+    test('DoctorScheduleSession accurately calculates complete slots (6:00 AM - 8:00 AM, 4 mins = 30 slots)', () {
+      final session = DoctorScheduleSession(
+        id: 'sess_1',
+        name: 'Morning Session',
+        startHour: 6,
+        startMinute: 0,
+        startPeriod: 'AM',
+        endHour: 8,
+        endMinute: 0,
+        endPeriod: 'AM',
+        consultationDurationMin: 4,
+      );
+
+      expect(session.startMinutesFromMidnight, 360);
+      expect(session.endMinutesFromMidnight, 480);
+      expect(session.totalWorkingMinutes, 120);
+      expect(session.calculatedSlotCount, 30);
+
+      final slots = session.generateSlots(doctorId: 'doc_1', date: '2026-09-03');
+      expect(slots.length, 30);
+      expect(slots.first.startTime, '6:00 AM');
+      expect(slots.first.endTime, '6:04 AM');
+      expect(slots.first.tokenNumber, '01');
+      expect(slots.last.startTime, '7:56 AM');
+      expect(slots.last.endTime, '8:00 AM');
+      expect(slots.last.tokenNumber, '30');
+    });
+
+    test('DoctorScheduleSession omits partial slots at the end (125 mins / 4 mins = 31 complete slots)', () {
+      final session = DoctorScheduleSession(
+        id: 'sess_partial',
+        name: 'Custom Session',
+        startHour: 6,
+        startMinute: 0,
+        startPeriod: 'AM',
+        endHour: 8,
+        endMinute: 5,
+        endPeriod: 'AM',
+        consultationDurationMin: 4,
+      );
+
+      expect(session.totalWorkingMinutes, 125);
+      expect(session.calculatedSlotCount, 31); // 125 ~/ 4 = 31 complete slots
+      final slots = session.generateSlots(doctorId: 'doc_1', date: '2026-09-03');
+      expect(slots.length, 31);
+      expect(slots.last.startTime, '8:00 AM');
+      expect(slots.last.endTime, '8:04 AM');
+    });
   });
 }
+
 

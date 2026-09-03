@@ -175,22 +175,32 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
       return;
     } catch (_) {}
 
-    // Fallback generated slots for Firebase demo mode
+    // Fallback generated complete slots matching doctor sessions
     final baseDate = targetDate;
     final List<TimeSlot> generatedSlots = [];
-    final startHour = selectedDoctor?.slotStartHour ?? 9;
-    final count = selectedDoctor?.slotCount ?? 8;
-    final duration = selectedDoctor?.slotDurationMin ?? 30;
 
-    for (int i = 0; i < count; i++) {
-      final slotTime = DateTime(baseDate.year, baseDate.month, baseDate.day, startHour).add(Duration(minutes: i * duration));
-      final hourStr = slotTime.hour > 12 ? (slotTime.hour - 12) : (slotTime.hour == 0 ? 12 : slotTime.hour);
-      final amPm = slotTime.hour >= 12 ? 'PM' : 'AM';
-      final minStr = slotTime.minute.toString().padLeft(2, '0');
-      final label = "$hourStr:$minStr $amPm";
+    // Morning Session: 6:00 AM - 8:00 AM (4 min slots)
+    for (int i = 0; i < 30; i++) {
+      final slotStart = DateTime(baseDate.year, baseDate.month, baseDate.day, 6, i * 4);
+      final slotEnd = slotStart.add(const Duration(minutes: 4));
+      final startLabel = DateFormat('h:mm a').format(slotStart);
+      final endLabel = DateFormat('h:mm a').format(slotEnd);
       generatedSlots.add(TimeSlot(
-        time: slotTime.toIso8601String(),
-        label: label,
+        time: slotStart.toIso8601String(),
+        label: "$startLabel – $endLabel",
+        available: i != 0 && i != 2, // demo: slot 0 and 2 are booked/checked-in
+      ));
+    }
+
+    // Evening Session: 5:00 PM - 8:00 PM (4 min slots)
+    for (int i = 0; i < 45; i++) {
+      final slotStart = DateTime(baseDate.year, baseDate.month, baseDate.day, 17, i * 4);
+      final slotEnd = slotStart.add(const Duration(minutes: 4));
+      final startLabel = DateFormat('h:mm a').format(slotStart);
+      final endLabel = DateFormat('h:mm a').format(slotEnd);
+      generatedSlots.add(TimeSlot(
+        time: slotStart.toIso8601String(),
+        label: "$startLabel – $endLabel",
         available: true,
       ));
     }

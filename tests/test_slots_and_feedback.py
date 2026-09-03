@@ -96,7 +96,65 @@ class TestSlotsAndFeedback(unittest.TestCase):
 
             print("\nSUCCESS: All Slot Management and Patient Feedback Workflows Verified 100%!")
 
+            # 10. Test Multi-Session Slot Generation & Validation
+            from server import (
+                SessionConfig, _validate_sessions, _session_to_minutes, _minutes_to_12hr,
+                SlotGenerateRequest, generate_doctor_slots
+            )
+
+            # Test 6:00 AM - 8:00 AM (120 min / 4 min = 30 complete slots)
+            morning = SessionConfig(
+                name="Morning Session",
+                start_hour=6,
+                start_minute=0,
+                start_period="AM",
+                end_hour=8,
+                end_minute=0,
+                end_period="AM",
+                consultation_duration_min=4,
+            )
+            evening = SessionConfig(
+                name="Evening Session",
+                start_hour=5,
+                start_minute=0,
+                start_period="PM",
+                end_hour=8,
+                end_minute=0,
+                end_period="PM",
+                consultation_duration_min=4,
+            )
+
+            is_valid, err = _validate_sessions([morning, evening])
+            self.assertTrue(is_valid)
+
+            # Test Overlap Detection
+            overlapping_evening = SessionConfig(
+                name="Overlap Session",
+                start_hour=7,
+                start_minute=0,
+                start_period="AM",
+                end_hour=9,
+                end_minute=0,
+                end_period="AM",
+                consultation_duration_min=4,
+            )
+            is_valid_overlap, err_overlap = _validate_sessions([morning, overlapping_evening])
+            self.assertFalse(is_valid_overlap)
+            self.assertIn("Overlapping sessions detected", err_overlap)
+
+            # Test Complete Slot Generation
+            gen_res = await generate_doctor_slots(
+                SlotGenerateRequest(date="2026-09-03", sessions=[morning, evening]),
+                doctor=doc_user
+            )
+            self.assertEqual(gen_res["total_slots"], 75) # 30 morning + 45 evening
+            self.assertEqual(gen_res["slots"][0]["start_time"], "6:00 AM")
+            self.assertEqual(gen_res["slots"][0]["end_time"], "6:04 AM")
+            self.assertEqual(gen_res["slots"][29]["start_time"], "7:56 AM")
+            self.assertEqual(gen_res["slots"][29]["end_time"], "8:00 AM")
+
         asyncio.run(run_tests())
 
 if __name__ == "__main__":
     unittest.main()
+

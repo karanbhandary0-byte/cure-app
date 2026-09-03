@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -257,6 +258,49 @@ class StaffInvite(BaseModel):
 class StaffVerify(BaseModel):
     phone: str
     code: str
+
+
+class SessionConfig(BaseModel):
+    id: Optional[str] = None
+    name: str  # e.g. "Morning Session", "Evening Session"
+    start_hour: int  # 1-12
+    start_minute: int  # 0-59
+    start_period: str  # "AM" or "PM"
+    end_hour: int  # 1-12
+    end_minute: int  # 0-59
+    end_period: str  # "AM" or "PM"
+    consultation_duration_min: int  # e.g. 4
+    is_active: bool = True
+
+
+class DoctorScheduleUpdate(BaseModel):
+    sessions: List[SessionConfig]
+
+
+class SlotGenerateRequest(BaseModel):
+    date: str  # YYYY-MM-DD
+    sessions: Optional[List[SessionConfig]] = None
+
+
+class SlotBookingRequest(BaseModel):
+    slot_id: str
+    patient_name: Optional[str] = None
+    patient_phone: Optional[str] = None
+    reason: Optional[str] = ""
+    appointment_type: Optional[str] = "online"  # "online" or "walk_in"
+
+
+class SlotStatusUpdate(BaseModel):
+    status: str  # "available", "booked", "checked_in", "completed", "cancelled", "no_show"
+
+
+class WalkinSlotAssign(BaseModel):
+    patient_name: str
+    gender: str
+    age: int
+    phone: str
+    date: Optional[str] = None
+
 
 
 
@@ -682,6 +726,354 @@ async def update_doctor_settings(body: DoctorSettings, doctor: dict = Depends(re
     return {"ok": True, **update}
 
 
+def _session_to_minutes(hour: int, minute: int, period: str) -> int:
+    h = hour % 12
+    if period.upper() == "PM":
+        h += 12
+    return h * 60 + minute
+
+
+def _minutes_to_12hr(total_minutes: int) -> str:
+    hours = (total_minutes // 60) % 24
+    minutes = total_minutes % 60
+    period = "PM" if hours >= 12 else "AM"
+    disp_h = hours % 12
+    if disp_h == 0:
+        disp_h = 12
+    return f"{disp_h}:{minutes:02d} {period}"
+
+
+def _validate_sessions(sessions: list[SessionConfig]) -> tuple[bool, str]:
+    if not sessions:
+        return False, "At least one working session must be provided."
+    
+    parsed_ranges = []
+    for s in sessions:
+        if s.consultation_duration_min <= 0:
+            return False, f"Session '{s.name}': consultation duration must be greater than 0 minutes."
+        if s.start_hour < 1 or s.start_hour > 12 or s.end_hour < 1 or s.end_hour > 12:
+            return False, f"Session '{s.name}': hour must be between 1 and 12."
+        if s.start_minute < 0 or s.start_minute > 59 or s.end_minute < 0 or s.end_minute > 59:
+            return False, f"Session '{s.name}': minutes must be between 0 and 59."
+        
+        start_m = _session_to_minutes(s.start_hour, s.start_minute, s.start_period)
+        end_m = _session_to_minutes(s.end_hour, s.end_minute, s.end_period)
+        
+        if end_m <= start_m:
+            return False, f"Session '{s.name}': End time ({_minutes_to_12hr(end_m)}) cannot be earlier than or equal to start time ({_minutes_to_12hr(start_m)})."
+        
+        total_working_min = end_m - start_m
+        if total_working_min < s.consultation_duration_min:
+            return False, f"Session '{s.name}': Working period ({total_working_min} mins) is shorter than consultation duration ({s.consultation_duration_min} mins)."
+        
+        parsed_ranges.append((start_m, end_m, s.name))
+
+    # Overlap validation between sessions
+    for i in range(len(parsed_ranges)):
+        for j in range(i + 1, len(parsed_ranges)):
+            s1, e1, n1 = parsed_ranges[i]
+            s2, e2, n2 = parsed_ranges[j]
+            if max(s1, s2) < min(e1, e2):
+                return False, f"Overlapping sessions detected between '{n1}' ({_minutes_to_12hr(s1)} - {_minutes_to_12hr(e1)}) and '{n2}' ({_minutes_to_12hr(s2)} - {_minutes_to_12hr(e2)})."
+    
+    return True, ""
+
+
+# ---------------- Doctor Schedule & Session Endpoints -----------------
+@api.get("/doctor/schedule/sessions")
+async def get_doctor_schedule_sessions(doctor: dict = Depends(require_doctor)):
+    doc = await db.doctors.find_one({"_id": doctor["id"]})
+    sessions = doc.get("schedule_sessions", [])
+    if not sessions:
+        # Default starter sessions: Morning (6-8 AM, 4m) & Evening (5-8 PM, 4m)
+        sessions = [
+            {
+                "id": "sess_morning",
+                "name": "Morning Session",
+                "start_hour": 6,
+                "start_minute": 0,
+                "start_period": "AM",
+                "end_hour": 8,
+                "end_minute": 0,
+                "end_period": "AM",
+                "consultation_duration_min": 4,
+                "is_active": True,
+            },
+            {
+                "id": "sess_evening",
+                "name": "Evening Session",
+                "start_hour": 5,
+                "start_minute": 0,
+                "start_period": "PM",
+                "end_hour": 8,
+                "end_minute": 0,
+                "end_period": "PM",
+                "consultation_duration_min": 4,
+                "is_active": True,
+            }
+        ]
+    return sessions
+
+
+@api.post("/doctor/schedule/sessions")
+async def update_doctor_schedule_sessions(body: DoctorScheduleUpdate, doctor: dict = Depends(require_doctor)):
+    is_valid, err_msg = _validate_sessions(body.sessions)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=err_msg)
+    
+    session_dicts = []
+    for idx, s in enumerate(body.sessions):
+        sd = s.dict()
+        if not sd.get("id"):
+            sd["id"] = f"sess_{idx}_{uuid.uuid4().hex[:6]}"
+        session_dicts.append(sd)
+        
+    await db.doctors.update_one(
+        {"_id": doctor["id"]},
+        {"$set": {"schedule_sessions": session_dicts, "schedule_updated_at": now_iso()}}
+    )
+    return {"ok": True, "sessions": session_dicts}
+
+
+@api.post("/doctor/slots/generate")
+async def generate_doctor_slots(body: SlotGenerateRequest, doctor: dict = Depends(require_doctor)):
+    date_str = body.date.strip()
+    sessions = body.sessions
+    if not sessions:
+        doc = await db.doctors.find_one({"_id": doctor["id"]})
+        raw_sess = doc.get("schedule_sessions", [])
+        sessions = [SessionConfig(**s) for s in raw_sess] if raw_sess else []
+    
+    if not sessions:
+        # Fallback default
+        sessions = [
+            SessionConfig(
+                name="Morning Session",
+                start_hour=6,
+                start_minute=0,
+                start_period="AM",
+                end_hour=8,
+                end_minute=0,
+                end_period="AM",
+                consultation_duration_min=4,
+            ),
+            SessionConfig(
+                name="Evening Session",
+                start_hour=5,
+                start_minute=0,
+                start_period="PM",
+                end_hour=8,
+                end_minute=0,
+                end_period="PM",
+                consultation_duration_min=4,
+            )
+        ]
+    
+    is_valid, err_msg = _validate_sessions(sessions)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=err_msg)
+
+    # Fetch existing booked slots for this date to preserve them
+    existing_slots = await db.slots.find({"doctor_id": doctor["id"], "date": date_str}).to_list(1000)
+    existing_map = {s["_id"]: s for s in existing_slots}
+
+    generated_slots = []
+    token_counter = 1
+
+    for s in sessions:
+        if not s.is_active:
+            continue
+        start_m = _session_to_minutes(s.start_hour, s.start_minute, s.start_period)
+        end_m = _session_to_minutes(s.end_hour, s.end_minute, s.end_period)
+        duration = s.consultation_duration_min
+        total_working = end_m - start_m
+        
+        # COMPLETE SLOTS ONLY: Total Working Minutes // Duration
+        num_slots = total_working // duration
+
+        for i in range(num_slots):
+            s_start = start_m + (i * duration)
+            s_end = s_start + duration
+            s_label = _minutes_to_12hr(s_start)
+            e_label = _minutes_to_12hr(s_end)
+            sess_key = re.sub(r'[^a-z0-9]', '_', s.name.lower())
+            token_str = f"{token_counter:02d}"
+            token_counter += 1
+
+            slot_id = f"slot_{doctor['id']}_{date_str}_{sess_key}_{token_str}"
+
+            if slot_id in existing_map:
+                # Keep preserved status if already booked/checked-in
+                generated_slots.append(existing_map[slot_id])
+            else:
+                slot_doc = {
+                    "_id": slot_id,
+                    "doctor_id": doctor["id"],
+                    "session_name": s.name,
+                    "date": date_str,
+                    "start_time": s_label,
+                    "end_time": e_label,
+                    "start_minutes": s_start,
+                    "end_minutes": s_end,
+                    "duration_min": duration,
+                    "token_number": token_str,
+                    "status": "available",
+                    "patient_id": None,
+                    "patient_name": None,
+                    "patient_phone": None,
+                    "appointment_type": None,
+                    "booked_at": None,
+                    "created_at": now_iso(),
+                }
+                await db.slots.update_one({"_id": slot_id}, {"$set": slot_doc}, upsert=True)
+                generated_slots.append(slot_doc)
+
+    return {"ok": True, "date": date_str, "total_slots": len(generated_slots), "slots": [strip_id(s) for s in generated_slots]}
+
+
+@api.get("/doctor/slots")
+async def get_doctor_slots(date: Optional[str] = None, doctor: dict = Depends(require_doctor)):
+    query_date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    slots = await db.slots.find({"doctor_id": doctor["id"], "date": query_date}).sort("start_minutes", 1).to_list(1000)
+    
+    if not slots:
+        # Auto-generate slots on the fly if not already generated
+        gen_res = await generate_doctor_slots(SlotGenerateRequest(date=query_date), doctor)
+        return gen_res["slots"]
+        
+    return [strip_id(s) for s in slots]
+
+
+@api.put("/doctor/slots/{slot_id}/status")
+async def update_slot_status(slot_id: str, body: SlotStatusUpdate, doctor: dict = Depends(require_doctor)):
+    valid_statuses = {"available", "booked", "checked_in", "completed", "cancelled", "no_show"}
+    if body.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+    
+    res = await db.slots.find_one_and_update(
+        {"_id": slot_id, "doctor_id": doctor["id"]},
+        {"$set": {"status": body.status, "updated_at": now_iso()}},
+        return_document=True
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    return strip_id(res)
+
+
+# ---------------- Patient Dynamic Slot & Atomic Booking -----------------
+@api.get("/patient/doctors/{doctor_id}/slots")
+async def get_patient_view_slots(doctor_id: str, date: Optional[str] = None):
+    query_date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    slots = await db.slots.find({"doctor_id": doctor_id, "date": query_date}).sort("start_minutes", 1).to_list(1000)
+    
+    if not slots:
+        doc = await db.doctors.find_one({"_id": doctor_id})
+        if doc:
+            # Generate default slots
+            fake_doc = {"id": doctor_id, "name": doc.get("name", "Doctor")}
+            gen_res = await generate_doctor_slots(SlotGenerateRequest(date=query_date), fake_doc)
+            slots = gen_res.get("slots", [])
+            return slots
+
+    return [strip_id(s) for s in slots]
+
+
+@api.post("/patient/slots/book")
+async def book_appointment_slot(body: SlotBookingRequest, patient: dict = Depends(require_patient)):
+    slot_id = body.slot_id.strip()
+    
+    # ATOMIC CONCURRENCY CHECK: Slot must be currently "available"
+    updated_slot = await db.slots.find_one_and_update(
+        {"_id": slot_id, "status": "available"},
+        {
+            "$set": {
+                "status": "booked",
+                "patient_id": patient["id"],
+                "patient_name": body.patient_name or patient.get("name", "Patient"),
+                "patient_phone": body.patient_phone or patient.get("phone", ""),
+                "appointment_type": body.appointment_type or "online",
+                "booked_at": now_iso(),
+            }
+        },
+        return_document=True
+    )
+    
+    if not updated_slot:
+        raise HTTPException(
+            status_code=409,
+            detail="This slot was just booked by another patient. Please select another available slot."
+        )
+
+    # Also register corresponding appointment record
+    appt_id = f"apt_{uuid.uuid4().hex[:12]}"
+    appt_doc = {
+        "_id": appt_id,
+        "doctor_id": updated_slot["doctor_id"],
+        "patient_id": patient["id"],
+        "slot_id": slot_id,
+        "token_number": updated_slot.get("token_number", "01"),
+        "scheduled_at": f"{updated_slot['date']}T{updated_slot['start_time']}",
+        "time_label": f"{updated_slot['start_time']} – {updated_slot['end_time']}",
+        "duration_min": updated_slot["duration_min"],
+        "status": "booked",
+        "reason": body.reason or "Consultation",
+        "appointment_type": body.appointment_type or "online",
+        "created_at": now_iso(),
+    }
+    await db.appointments.insert_one(appt_doc)
+    
+    return {
+        "ok": True,
+        "message": f"Appointment confirmed for {updated_slot['start_time']} – {updated_slot['end_time']}",
+        "slot": strip_id(updated_slot),
+        "appointment": strip_id(appt_doc),
+    }
+
+
+# ---------------- Walk-in Queue Slot Assignment -----------------
+@api.post("/staff/walkin/assign-slot")
+async def assign_walkin_slot(body: WalkinSlotAssign, staff: dict = Depends(get_current_user)):
+    target_date = body.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    doc_id = staff.get("doctor_id", "doc_demo_001")
+    
+    # Try finding next available slot today
+    available_slot = await db.slots.find_one_and_update(
+        {"doctor_id": doc_id, "date": target_date, "status": "available"},
+        {
+            "$set": {
+                "status": "checked_in",
+                "patient_name": body.patient_name,
+                "patient_phone": body.phone,
+                "appointment_type": "walk_in",
+                "booked_at": now_iso(),
+            }
+        },
+        sort=[("start_minutes", 1)],
+        return_document=True
+    )
+    
+    if available_slot:
+        return {
+            "ok": True,
+            "assigned_to_slot": True,
+            "token_number": available_slot["token_number"],
+            "slot_time": f"{available_slot['start_time']} – {available_slot['end_time']}",
+            "slot": strip_id(available_slot),
+        }
+    
+    # All slots booked -> Allocate queue waiting position
+    total_slots_count = await db.slots.count_documents({"doctor_id": doc_id, "date": target_date})
+    walkin_token = f"W-{total_slots_count + 1:02d}"
+    return {
+        "ok": True,
+        "assigned_to_slot": False,
+        "queue_position": total_slots_count + 1,
+        "token_number": walkin_token,
+        "message": "All scheduled slots are currently booked. Walk-in assigned to waiting queue."
+    }
+
+
+
 def _generate_slots(doc: dict, date_iso: str, booked: set[str], custom_slots: list[str] | None = None) -> list[dict]:
     duration = int(doc.get("slot_duration_min") or 30)
     count = int(doc.get("slot_count") or 8)
@@ -708,6 +1100,7 @@ def _generate_slots(doc: dict, date_iso: str, booked: set[str], custom_slots: li
 
 
 async def _custom_slot_times(doctor_id: str, day_start: datetime, day_end: datetime) -> list[str]:
+
     docs = await db.custom_slots.find(
         {"doctor_id": doctor_id, "scheduled_at": {"$gte": day_start.isoformat(), "$lt": day_end.isoformat()}},
         {"scheduled_at": 1},
