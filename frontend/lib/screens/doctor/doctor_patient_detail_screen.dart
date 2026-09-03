@@ -129,7 +129,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
     );
   }
 
-  void _submitConsultation(String? appointmentId) async {
+  void _submitConsultation(String? appointmentId, [String? patientName]) async {
     if (_diagController.text.trim().isEmpty && _prescriptionBase64 == null && _presController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please enter a diagnosis, prescription or attach a prescription photo.")),
@@ -155,6 +155,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         id: 'consult_${DateTime.now().millisecondsSinceEpoch}',
         doctorId: doctorId,
         patientId: widget.patientId,
+        patientName: patientName,
         appointmentId: apptId,
         diagnosis: diag,
         prescription: pres,
@@ -589,7 +590,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                             height: 48,
                             child: ElevatedButton(
                               key: const Key("save-consultation"),
-                              onPressed: isSaving ? null : () => _submitConsultation(upcoming?.id),
+                              onPressed: isSaving ? null : () => _submitConsultation(upcoming?.id, patientName),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brand,
                                 foregroundColor: Colors.white,

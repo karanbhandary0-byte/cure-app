@@ -15,6 +15,8 @@ DateTime _parseDateTime(dynamic val) {
 class Consultation {
   final String id;
   final String appointmentId;
+  final String? patientId;
+  final String? patientName;
   final String diagnosis;
   final String prescription;
   final String? prescriptionImageUrl;
@@ -25,6 +27,8 @@ class Consultation {
   Consultation({
     required this.id,
     required this.appointmentId,
+    this.patientId,
+    this.patientName,
     required this.diagnosis,
     required this.prescription,
     this.prescriptionImageUrl,
@@ -37,6 +41,8 @@ class Consultation {
     return Consultation(
       id: json['id']?.toString() ?? '',
       appointmentId: json['appointment_id']?.toString() ?? '',
+      patientId: json['patient_id']?.toString(),
+      patientName: json['patient_name']?.toString() ?? json['patient']?['name']?.toString(),
       diagnosis: json['diagnosis']?.toString() ?? '',
       prescription: json['prescription']?.toString() ?? '',
       prescriptionImageUrl: json['prescription_image_url']?.toString(),
@@ -50,6 +56,8 @@ class Consultation {
     return {
       'id': id,
       'appointment_id': appointmentId,
+      'patient_id': patientId,
+      'patient_name': patientName,
       'diagnosis': diagnosis,
       'prescription': prescription,
       'prescription_image_url': prescriptionImageUrl,

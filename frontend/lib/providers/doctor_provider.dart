@@ -392,6 +392,7 @@ class RecordedConsultation {
   final String id;
   final String doctorId;
   final String patientId;
+  final String? patientName;
   final String appointmentId;
   final String diagnosis;
   final String prescription;
@@ -404,6 +405,7 @@ class RecordedConsultation {
     required this.id,
     required this.doctorId,
     required this.patientId,
+    this.patientName,
     required this.appointmentId,
     required this.diagnosis,
     required this.prescription,
@@ -421,9 +423,14 @@ class RecordedConsultationsNotifier extends StateNotifier<List<RecordedConsultat
     state = [consult, ...state];
   }
 
-  List<RecordedConsultation> getForPatientAndDoctor(String patientId, String doctorId) {
+  List<RecordedConsultation> getForPatientAndDoctor(String patientId, String doctorId, {String? patientName}) {
     return state
-        .where((c) => c.patientId == patientId && (doctorId.isEmpty || c.doctorId == doctorId))
+        .where((c) {
+          final docMatch = doctorId.isEmpty || c.doctorId == doctorId;
+          final idMatch = c.patientId == patientId;
+          final nameMatch = patientName == null || patientName.isEmpty || (c.patientName != null && c.patientName!.toLowerCase() == patientName.toLowerCase());
+          return docMatch && (idMatch || nameMatch);
+        })
         .toList();
   }
 }

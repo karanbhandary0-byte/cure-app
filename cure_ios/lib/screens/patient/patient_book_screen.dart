@@ -221,6 +221,11 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
 
     final authState = ref.read(authProvider);
     final patient = authState.currentUser is Patient ? authState.currentUser as Patient : null;
+    final membersState = ref.read(patientMembersProvider);
+    final activeMember = membersState.selectedMember;
+
+    final targetPatientName = activeMember.name;
+    final targetPatientId = "${patient?.id ?? 'patient_demo'}_${activeMember.id}";
     final scheduledDateTime = DateTime.tryParse(chosenSlot) ?? DateTime.now().add(const Duration(days: 1));
 
     try {
@@ -229,8 +234,8 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
         doctorId: selectedDoctor!.id,
         doctorName: selectedDoctor!.name,
         clinicName: selectedDoctor!.clinicName,
-        patientId: patient?.id ?? 'patient_demo',
-        patientName: patient?.name ?? 'Patient Demo',
+        patientId: targetPatientId,
+        patientName: targetPatientName,
         patientPhone: patient?.phone ?? '+15551110001',
         scheduledAt: scheduledDateTime,
       );
@@ -247,6 +252,8 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
       await api.post("/patient/appointments", body: {
         "doctor_id": selectedDoctor!.id,
         "scheduled_at": chosenSlot,
+        "patient_name": targetPatientName,
+        "patient_id": targetPatientId,
         "reason": _reasonController.text.trim(),
       });
 

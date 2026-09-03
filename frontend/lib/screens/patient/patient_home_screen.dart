@@ -549,7 +549,18 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final membersState = ref.watch(patientMembersProvider);
     final activeMember = membersState.selectedMember;
 
-    final next = state.appointments.cast<Appointment?>().firstWhere(
+    // Filter appointments strictly for activeMember
+    final memberAppointments = state.appointments.where((a) {
+      if (a.patientName != null && a.patientName!.trim().isNotEmpty) {
+        return a.patientName!.trim().toLowerCase() == activeMember.name.trim().toLowerCase();
+      }
+      if (a.patientId.isNotEmpty) {
+        return a.patientId.contains(activeMember.id);
+      }
+      return activeMember.isPrimary;
+    }).toList();
+
+    final next = memberAppointments.cast<Appointment?>().firstWhere(
           (a) => a?.status == "scheduled" || a?.status == "delayed" || a?.status == "booked",
           orElse: () => null,
         );
@@ -728,9 +739,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                "NEXT APPOINTMENT",
-                                style: TextStyle(
+                              Text(
+                                "NEXT APPOINTMENT FOR ${activeMember.name.toUpperCase()}",
+                                style: const TextStyle(
                                   color: AppColors.muted,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
@@ -838,9 +849,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Your Appointments",
-                        style: TextStyle(
+                      Text(
+                        "Appointments for ${activeMember.name}",
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: AppColors.onSurface,
@@ -854,7 +865,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   ),
                 ),
 
-                if (state.appointments.isEmpty)
+                if (memberAppointments.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(AppSpacing.xl),
                     child: Container(
@@ -865,10 +876,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          "No appointments booked yet.",
-                          style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600),
+                          "No appointments booked for ${activeMember.name} yet.",
+                          style: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -879,10 +890,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                     child: ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: state.appointments.length > 3 ? 3 : state.appointments.length,
+                      itemCount: memberAppointments.length > 3 ? 3 : memberAppointments.length,
                       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, index) {
-                        final appt = state.appointments[index];
+                        final appt = memberAppointments[index];
                         return Container(
                           padding: const EdgeInsets.all(AppSpacing.md),
                           decoration: BoxDecoration(
