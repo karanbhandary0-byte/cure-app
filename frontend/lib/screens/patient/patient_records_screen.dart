@@ -291,7 +291,6 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
             createdAt: rc.createdAt,
             doctor: Doctor(
               id: rc.doctorId,
-              email: '',
               name: rc.doctorName,
               specialty: 'Consultation',
               clinicName: 'Cure Clinic',
