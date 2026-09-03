@@ -208,7 +208,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
             if (displayRows.isEmpty)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.xxl),
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
