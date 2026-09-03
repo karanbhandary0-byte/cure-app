@@ -1247,85 +1247,92 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                       BoxShadow(color: Color(0x05000000), blurRadius: 4, offset: Offset(0, 2)),
                     ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Visit Date and Diagnosis preview
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      // Top Row: Visit Date and View Prescription Button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Visit Date
+                          Expanded(
+                            child: Row(
                               children: [
-                                const Icon(Icons.calendar_today, size: 15, color: Color(0xFF0F766E)),
-                                const SizedBox(width: 6),
-                                Text(
-                                  visit.formattedDate,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E293B),
+                                const Icon(Icons.calendar_today, size: 16, color: Color(0xFF0F766E)),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    visit.formattedDate,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (hasImage) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEFF6FF),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: const Color(0xFFBFDBFE)),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(Icons.attachment, size: 12, color: Color(0xFF1D4ED8)),
-                                        SizedBox(width: 2),
-                                        Text(
-                                          "Uploaded Doc",
-                                          style: TextStyle(fontSize: 10, color: Color(0xFF1D4ED8), fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              visit.diagnosis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
+                          ),
+                          const SizedBox(width: 8),
 
-                      // [ View Prescription ] Action Button
-                      ElevatedButton(
-                        key: Key("view-prescription-${visit.id}"),
-                        onPressed: () => _showPrescriptionModal(visit),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F766E),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: 0,
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.visibility, size: 15, color: Colors.white),
-                            SizedBox(width: 6),
-                            Text(
+                          // [ View Prescription ] Action Button
+                          ElevatedButton.icon(
+                            key: Key("view-prescription-${visit.id}"),
+                            onPressed: () => _showPrescriptionModal(visit),
+                            icon: const Icon(Icons.visibility, size: 14, color: Colors.white),
+                            label: const Text(
                               "View Prescription",
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                             ),
-                          ],
-                        ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0F766E),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Diagnosis & Uploaded Doc Badge
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            visit.diagnosis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (hasImage)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFFBFDBFE)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.attachment, size: 12, color: Color(0xFF1D4ED8)),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    "Uploaded Doc",
+                                    style: TextStyle(fontSize: 10, color: Color(0xFF1D4ED8), fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
