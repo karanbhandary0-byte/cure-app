@@ -132,7 +132,7 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _SlotsModal(doctor: doctor),
+      builder: (context) => const _DashboardManageSlotsSheet(),
     );
   }
 
