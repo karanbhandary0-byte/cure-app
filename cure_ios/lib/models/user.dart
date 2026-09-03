@@ -9,8 +9,16 @@ class Doctor {
   final int? slotDurationMin;
   final int? slotCount;
   final int? slotStartHour;
-
   final String? verificationStatus;
+
+  // Professional Onboarding Details
+  final String? profilePhoto;
+  final String? medicalDegree;
+  final String? subSpecialization;
+  final String? registrationNumber;
+  final String? registrationCouncil;
+  final int? experienceYears;
+  final String? languagesSpoken;
 
   Doctor({
     required this.id,
@@ -24,13 +32,20 @@ class Doctor {
     this.slotDurationMin,
     this.slotCount,
     this.slotStartHour,
+    this.profilePhoto,
+    this.medicalDegree,
+    this.subSpecialization,
+    this.registrationNumber,
+    this.registrationCouncil,
+    this.experienceYears,
+    this.languagesSpoken,
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
     return Doctor(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
-      specialty: json['specialty']?.toString() ?? '',
+      specialty: json['specialty']?.toString() ?? json['specialization']?.toString() ?? '',
       clinicName: json['clinic_name']?.toString() ?? 'My Clinic',
       clinicAddress: json['clinic_address']?.toString(),
       status: json['status']?.toString() ?? 'available',
@@ -47,6 +62,15 @@ class Doctor {
       slotStartHour: json['slot_start_hour'] is int
           ? json['slot_start_hour']
           : int.tryParse(json['slot_start_hour']?.toString() ?? '9'),
+      profilePhoto: json['profile_photo']?.toString() ?? json['photo_url']?.toString(),
+      medicalDegree: json['medical_degree']?.toString() ?? json['degree']?.toString(),
+      subSpecialization: json['sub_specialization']?.toString(),
+      registrationNumber: json['registration_number']?.toString() ?? json['medical_council_reg_no']?.toString(),
+      registrationCouncil: json['registration_council']?.toString() ?? json['registration_state_council']?.toString(),
+      experienceYears: json['years_of_experience'] is int
+          ? json['years_of_experience']
+          : int.tryParse(json['years_of_experience']?.toString() ?? json['experience_years']?.toString() ?? ''),
+      languagesSpoken: json['languages_spoken']?.toString() ?? json['languages']?.toString(),
     );
   }
 
@@ -55,6 +79,7 @@ class Doctor {
       'id': id,
       'name': name,
       'specialty': specialty,
+      'specialization': specialty,
       'clinic_name': clinicName,
       'clinic_address': clinicAddress,
       'status': status,
@@ -63,6 +88,13 @@ class Doctor {
       'slot_duration_min': slotDurationMin,
       'slot_count': slotCount,
       'slot_start_hour': slotStartHour,
+      'profile_photo': profilePhoto,
+      'medical_degree': medicalDegree,
+      'sub_specialization': subSpecialization,
+      'registration_number': registrationNumber,
+      'registration_council': registrationCouncil,
+      'years_of_experience': experienceYears,
+      'languages_spoken': languagesSpoken,
     };
   }
 }

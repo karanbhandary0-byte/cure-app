@@ -61,8 +61,15 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
     final authState = ref.watch(authProvider);
     final Doctor? doctor = authState.currentUser is Doctor ? authState.currentUser as Doctor : null;
 
-    final docName = doctor?.name ?? "Dr. Robert Smith, MD";
-    final docSpecialty = doctor?.specialty ?? "Cardiology & Internal Medicine";
+    final docName = doctor?.name ?? "Dr. Sarah Mitchell";
+    final docDegree = doctor?.medicalDegree ?? "MBBS, MD";
+    final docSpecialty = doctor?.specialty ?? "Cardiology";
+    final docSubSpecialty = doctor?.subSpecialization;
+    final docRegNumber = doctor?.registrationNumber ?? "KMC-84920";
+    final docCouncil = doctor?.registrationCouncil ?? "Karnataka Medical Council";
+    final docExperience = doctor?.experienceYears ?? 8;
+    final docLanguages = doctor?.languagesSpoken ?? "English, Hindi, Kannada";
+    final docPhoto = doctor?.profilePhoto;
     final clinicName = doctor?.clinicName ?? "Cure Medical Center";
     final clinicAddress = doctor?.clinicAddress ?? "Suite 402, 750 Health Plaza, Medical District";
     final slotDuration = doctor?.slotDurationMin ?? 30;
@@ -119,17 +126,34 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                   Row(
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 64,
+                        height: 64,
                         decoration: BoxDecoration(
-                          color: AppColors.brandTertiary,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          color: const Color(0xFF0F766E).withOpacity(0.12),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFF0F766E), width: 1.5),
                         ),
-                        child: const Icon(
-                          Icons.medical_services_outlined,
-                          color: AppColors.brand,
-                          size: 32,
-                        ),
+                        child: docPhoto != null && docPhoto.isNotEmpty
+                            ? ClipOval(
+                                child: docPhoto.startsWith("data:image")
+                                    ? Image.memory(
+                                        base64Decode(docPhoto.split(",").last),
+                                        width: 64,
+                                        height: 64,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.network(docPhoto, fit: BoxFit.cover),
+                              )
+                            : Center(
+                                child: Text(
+                                  docName.isNotEmpty ? docName[0].toUpperCase() : "D",
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                ),
+                              ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
@@ -146,10 +170,10 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              docSpecialty,
+                              "$docDegree · $docSpecialty",
                               style: const TextStyle(
                                 fontSize: 13,
-                                color: AppColors.brand,
+                                color: Color(0xFF0F766E),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -166,7 +190,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                   Icon(Icons.verified, size: 12, color: Color(0xFF16A34A)),
                                   SizedBox(width: 4),
                                   Text(
-                                    "Verified Practice",
+                                    "Verified Practitioner",
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
@@ -185,16 +209,20 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                   const Divider(color: AppColors.border, height: 1),
                   const SizedBox(height: AppSpacing.md),
 
-                  // Clinic Info Details
+                  // Medical & Council Registration Details
+                  _buildProfileRow(Icons.school_outlined, "Medical Degree", docDegree),
+                  const SizedBox(height: 8),
+                  _buildProfileRow(Icons.medical_information_outlined, "Specialization", "$docSpecialty${docSubSpecialty != null && docSubSpecialty.isNotEmpty ? ' ($docSubSpecialty)' : ''}"),
+                  const SizedBox(height: 8),
+                  _buildProfileRow(Icons.verified_user_outlined, "Council Reg. No.", "$docRegNumber · $docCouncil"),
+                  const SizedBox(height: 8),
+                  _buildProfileRow(Icons.work_history_outlined, "Experience", "$docExperience years in clinical practice"),
+                  const SizedBox(height: 8),
+                  _buildProfileRow(Icons.translate_outlined, "Languages", docLanguages),
+                  const SizedBox(height: 8),
                   _buildProfileRow(Icons.business_outlined, "Clinic Practice", clinicName),
                   const SizedBox(height: 8),
                   _buildProfileRow(Icons.location_on_outlined, "Location", clinicAddress),
-                  const SizedBox(height: 8),
-                  _buildProfileRow(
-                    Icons.access_time_outlined,
-                    "Consultation Slots",
-                    "$slotDuration mins/slot · $slotCount slots/day (Starts at ${slotStartHour.toString().padLeft(2, '0')}:00)",
-                  ),
                 ],
               ),
             ),

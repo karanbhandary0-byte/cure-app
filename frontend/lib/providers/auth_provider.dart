@@ -235,6 +235,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? specialty,
     String? clinicName,
     String? clinicAddress,
+    String? profilePhoto,
+    String? medicalDegree,
+    String? subSpecialization,
+    String? registrationNumber,
+    String? registrationCouncil,
+    int? experienceYears,
+    String? languagesSpoken,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -249,6 +256,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
           specialty: specialty ?? "General Physician",
           clinicName: (clinicName != null && clinicName.isNotEmpty) ? clinicName : "Cure Clinic",
           clinicAddress: clinicAddress,
+          profilePhoto: profilePhoto,
+          medicalDegree: medicalDegree,
+          subSpecialization: subSpecialization,
+          registrationNumber: registrationNumber,
+          registrationCouncil: registrationCouncil,
+          experienceYears: experienceYears,
+          languagesSpoken: languagesSpoken,
         );
       } else {
         doctor = await _firebase.doctorLogin(
@@ -298,8 +312,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
                 "password": password,
                 "name": name,
                 "specialty": specialty,
+                "specialization": specialty,
                 "clinic_name": (clinicName != null && clinicName.isNotEmpty) ? clinicName : "My Clinic",
                 "clinic_address": clinicAddress ?? "",
+                "profile_photo": profilePhoto ?? "",
+                "medical_degree": medicalDegree ?? "",
+                "sub_specialization": subSpecialization ?? "",
+                "registration_number": registrationNumber ?? "",
+                "registration_council": registrationCouncil ?? "",
+                "years_of_experience": experienceYears ?? 0,
+                "languages_spoken": languagesSpoken ?? "",
               }
             : {"email": email, "password": password};
 
