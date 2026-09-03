@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -30,6 +31,7 @@ class PatientVisitRecord {
   final List<PrescriptionItem> medicines;
   final String doctorInstructions;
   final String doctorName;
+  final String? prescriptionImageUrl;
 
   const PatientVisitRecord({
     required this.id,
@@ -38,6 +40,7 @@ class PatientVisitRecord {
     required this.medicines,
     required this.doctorInstructions,
     this.doctorName = "Dr. Karan",
+    this.prescriptionImageUrl,
   });
 
   String get formattedDate => DateFormat('MMMM d, yyyy').format(visitDate);
@@ -183,6 +186,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
               diagnosis: c.diagnosis.isNotEmpty ? c.diagnosis : "General Consultation",
               doctorInstructions: c.followUpInstructions ?? "Take prescribed medicines regularly.",
               medicines: _parsePrescriptionMedicines(c.prescription),
+              prescriptionImageUrl: c.prescriptionImageUrl,
             ),
           );
         }
@@ -401,6 +405,69 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
     }
   }
 
+  void _showPrescriptionImageDialog(BuildContext context, String imageUrlOrBase64, {String? title}) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        Widget imageWidget;
+        if (imageUrlOrBase64.startsWith("data:image")) {
+          final base64Data = imageUrlOrBase64.split(",").last;
+          final bytes = base64Decode(base64Data);
+          imageWidget = Image.memory(bytes, fit: BoxFit.contain);
+        } else {
+          imageWidget = Image.network(
+            imageUrlOrBase64,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Center(child: Text("Could not load prescription image")),
+          );
+        }
+
+        return Dialog(
+          backgroundColor: Colors.black.withOpacity(0.92),
+          insetPadding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      title ?? "Uploaded Prescription Document",
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: imageWidget,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  "Pinch or drag to zoom in and examine prescription details",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showPrescriptionModal(PatientVisitRecord visit) {
     showModalBottomSheet(
       context: context,
@@ -464,6 +531,85 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                   ],
                 ),
                 const Divider(height: 24, color: AppColors.border),
+
+                // Uploaded Prescription Document Section (if uploaded)
+                if (visit.prescriptionImageUrl != null && visit.prescriptionImageUrl!.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.attachment, size: 18, color: Color(0xFF1D4ED8)),
+                                SizedBox(width: 6),
+                                Text(
+                                  "Uploaded Prescription Photo / Document",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1D4ED8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _showPrescriptionImageDialog(
+                                context,
+                                visit.prescriptionImageUrl!,
+                                title: "Prescription - ${visit.formattedDate}",
+                              ),
+                              icon: const Icon(Icons.fullscreen, size: 16),
+                              label: const Text("Full View", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFF1D4ED8),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () => _showPrescriptionImageDialog(
+                            context,
+                            visit.prescriptionImageUrl!,
+                            title: "Prescription - ${visit.formattedDate}",
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              height: 140,
+                              width: double.infinity,
+                              color: Colors.white,
+                              child: visit.prescriptionImageUrl!.startsWith("data:image")
+                                  ? Image.memory(
+                                      base64Decode(visit.prescriptionImageUrl!.split(",").last),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.network(
+                                      visit.prescriptionImageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Center(
+                                        child: Text("Could not preview uploaded prescription image"),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
 
                 // Patient and Doctor Info Row
                 Container(
@@ -1005,7 +1151,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
             if (_isLoadingVisits)
               const Center(
                 child: Padding(
-                  padding: EdgeInsets.all(AppSpacing.xxl),
+                  padding: EdgeInsets.all(AppSpacing.x2l),
                   child: CircularProgressIndicator(color: Color(0xFF0F766E)),
                 ),
               )
@@ -1027,6 +1173,8 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
               )
             else
               ..._selectedPatientVisits.map((visit) {
+                final hasImage = visit.prescriptionImageUrl != null && visit.prescriptionImageUrl!.isNotEmpty;
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: AppSpacing.md),
                   padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1058,6 +1206,27 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                                     color: Color(0xFF1E293B),
                                   ),
                                 ),
+                                if (hasImage) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.attachment, size: 12, color: Color(0xFF1D4ED8)),
+                                        SizedBox(width: 2),
+                                        Text(
+                                          "Uploaded Doc",
+                                          style: TextStyle(fontSize: 10, color: Color(0xFF1D4ED8), fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                             const SizedBox(height: 4),
