@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/patient_provider.dart';
 import '../../models/user.dart';
 import '../../models/slot.dart';
+import 'package:intl/intl.dart';
 import '../../utils/disease_specialty_mapper.dart';
 
 class PatientBookScreen extends ConsumerStatefulWidget {

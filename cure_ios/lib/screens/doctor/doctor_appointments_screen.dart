@@ -816,7 +816,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                             title: Row(
                               children: [
                                 Text(
-                                  apt.patientName,
+                                  apt.patientName ?? 'Patient',
                                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                                 ),
                                 const Spacer(),
