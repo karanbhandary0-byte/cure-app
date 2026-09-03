@@ -171,29 +171,53 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
       _isLoadingVisits = true;
     });
 
-    List<PatientVisitRecord> visits = [];
-
-    // Try fetching live consultations from Firebase or API
+    // 1. Check locally recorded consultations with uploaded images
     try {
-      final fb = ref.read(firebaseServiceProvider);
-      final liveConsults = await fb.getPatientConsultations(patient.id);
-      if (liveConsults.isNotEmpty) {
-        for (final c in liveConsults) {
+      final localConsults = ref.read(recordedConsultationsProvider).where((c) =>
+          c.patientId == patient.id ||
+          c.patientId == 'pat_${patient.name.toLowerCase().split(' ').first}' ||
+          patient.name.toLowerCase().contains(c.patientId.toLowerCase())).toList();
+
+      for (final c in localConsults) {
+        if (!visits.any((v) => v.id == c.id)) {
           visits.add(
-            PatientVisitRecord(
+             PatientVisitRecord(
               id: c.id,
               visitDate: c.createdAt,
-              diagnosis: c.diagnosis.isNotEmpty ? c.diagnosis : "General Consultation",
+              diagnosis: c.diagnosis.isNotEmpty ? c.diagnosis : "Prescription Consultation",
               doctorInstructions: c.followUpInstructions ?? "Take prescribed medicines regularly.",
               medicines: _parsePrescriptionMedicines(c.prescription),
               prescriptionImageUrl: c.prescriptionImageUrl,
+              doctorName: c.doctorName,
             ),
           );
         }
       }
     } catch (_) {}
 
-    // If no live visits found, supply realistic visit history matching the user's specification
+    // 2. Try fetching live consultations from Firebase or API
+    try {
+      final fb = ref.read(firebaseServiceProvider);
+      final liveConsults = await fb.getPatientConsultations(patient.id);
+      if (liveConsults.isNotEmpty) {
+        for (final c in liveConsults) {
+          if (!visits.any((v) => v.id == c.id)) {
+            visits.add(
+              PatientVisitRecord(
+                id: c.id,
+                visitDate: c.createdAt,
+                diagnosis: c.diagnosis.isNotEmpty ? c.diagnosis : "General Consultation",
+                doctorInstructions: c.followUpInstructions ?? "Take prescribed medicines regularly.",
+                medicines: _parsePrescriptionMedicines(c.prescription),
+                prescriptionImageUrl: c.prescriptionImageUrl,
+              ),
+            );
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 3. If no live visits found, supply realistic visit history matching the user's specification
     if (visits.isEmpty) {
       visits = _getDefaultVisitsForPatient(patient);
     }

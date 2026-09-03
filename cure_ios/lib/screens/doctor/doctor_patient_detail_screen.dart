@@ -145,6 +145,20 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         ? appointmentId
         : 'appt_${widget.patientId}_${DateTime.now().millisecondsSinceEpoch}';
 
+    // Always record locally in recordedConsultationsProvider so it's instantly available
+    ref.read(recordedConsultationsProvider.notifier).addConsultation(
+      RecordedConsultation(
+        id: 'consult_${DateTime.now().millisecondsSinceEpoch}',
+        patientId: widget.patientId,
+        appointmentId: apptId,
+        diagnosis: diag,
+        prescription: pres,
+        prescriptionImageUrl: photo,
+        followUpInstructions: followUp,
+        createdAt: DateTime.now(),
+      ),
+    );
+
     try {
       final fb = ref.read(firebaseServiceProvider);
       await fb.createConsultation(

@@ -383,3 +383,49 @@ final patientDetailProvider =
     feedbacks: [],
   );
 });
+
+// =======================================================
+// RECORDED CONSULTATIONS STATE (WITH UPLOADED IMAGES)
+// =======================================================
+
+class RecordedConsultation {
+  final String id;
+  final String patientId;
+  final String appointmentId;
+  final String diagnosis;
+  final String prescription;
+  final String? prescriptionImageUrl;
+  final String? followUpInstructions;
+  final DateTime createdAt;
+  final String doctorName;
+
+  RecordedConsultation({
+    required this.id,
+    required this.patientId,
+    required this.appointmentId,
+    required this.diagnosis,
+    required this.prescription,
+    this.prescriptionImageUrl,
+    this.followUpInstructions,
+    required this.createdAt,
+    this.doctorName = "Dr. Karan",
+  });
+}
+
+class RecordedConsultationsNotifier extends StateNotifier<List<RecordedConsultation>> {
+  RecordedConsultationsNotifier() : super([]);
+
+  void addConsultation(RecordedConsultation consult) {
+    state = [consult, ...state];
+  }
+
+  List<RecordedConsultation> getForPatient(String patientId) {
+    return state.where((c) => c.patientId == patientId).toList();
+  }
+}
+
+final recordedConsultationsProvider =
+    StateNotifierProvider<RecordedConsultationsNotifier, List<RecordedConsultation>>((ref) {
+  return RecordedConsultationsNotifier();
+});
+
