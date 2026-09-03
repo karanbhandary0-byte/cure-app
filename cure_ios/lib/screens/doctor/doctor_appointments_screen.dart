@@ -3,31 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
-
-class CustomSlotSchedule {
-  final String id;
-  DateTime date;
-  TimeOfDay fromTime;
-  TimeOfDay toTime;
-  int durationMinutes;
-  int totalSlots;
-
-  CustomSlotSchedule({
-    required this.id,
-    required this.date,
-    required this.fromTime,
-    required this.toTime,
-    required this.durationMinutes,
-    required this.totalSlots,
-  });
-
-  bool get isToday {
-    final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
-  }
-
-  String get formattedDate => DateFormat('MMMM d, yyyy').format(date);
-}
+import '../../providers/schedule_provider.dart';
 
 class DoctorAppointmentsScreen extends ConsumerStatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -39,29 +15,7 @@ class DoctorAppointmentsScreen extends ConsumerStatefulWidget {
 class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Master List of Doctor's Created Schedules
-  final List<CustomSlotSchedule> _schedules = [
-    // Today's schedule
-    CustomSlotSchedule(
-      id: 'sched_today_1',
-      date: DateTime.now(),
-      fromTime: const TimeOfDay(hour: 6, minute: 0),
-      toTime: const TimeOfDay(hour: 8, minute: 0),
-      durationMinutes: 4,
-      totalSlots: 30,
-    ),
-    // Future schedule (e.g. Tomorrow)
-    CustomSlotSchedule(
-      id: 'sched_future_1',
-      date: DateTime.now().add(const Duration(days: 1)),
-      fromTime: const TimeOfDay(hour: 6, minute: 0),
-      toTime: const TimeOfDay(hour: 8, minute: 0),
-      durationMinutes: 4,
-      totalSlots: 30,
-    ),
-  ];
-
-  // Tab 2: Manage Slots Form State
+  // Tab 2 Form State
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _fromTime = const TimeOfDay(hour: 6, minute: 0);
   TimeOfDay _toTime = const TimeOfDay(hour: 8, minute: 0);
@@ -139,26 +93,24 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     final duration = int.tryParse(_durationController.text.trim()) ?? 4;
 
     if (_editingScheduleId != null) {
-      // Edit existing schedule
-      final idx = _schedules.indexWhere((s) => s.id == _editingScheduleId);
-      if (idx != -1) {
-        setState(() {
-          _schedules[idx].date = _selectedDate;
-          _schedules[idx].fromTime = _fromTime;
-          _schedules[idx].toTime = _toTime;
-          _schedules[idx].durationMinutes = duration;
-          _schedules[idx].totalSlots = slots;
-          _editingScheduleId = null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("✓ Schedule updated successfully!"),
-            backgroundColor: Color(0xFF15803D),
-          ),
-        );
-      }
+      final updated = CustomSlotSchedule(
+        id: _editingScheduleId!,
+        date: _selectedDate,
+        fromTime: _fromTime,
+        toTime: _toTime,
+        durationMinutes: duration,
+        totalSlots: slots,
+      );
+      ref.read(scheduleProvider.notifier).updateSchedule(updated);
+      setState(() => _editingScheduleId = null);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✓ Schedule updated successfully!"),
+          backgroundColor: Color(0xFF15803D),
+        ),
+      );
     } else {
-      // Create new schedule
       final newSched = CustomSlotSchedule(
         id: "sched_${DateTime.now().millisecondsSinceEpoch}",
         date: _selectedDate,
@@ -168,9 +120,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
         totalSlots: slots,
       );
 
-      setState(() {
-        _schedules.insert(0, newSched);
-      });
+      ref.read(scheduleProvider.notifier).addSchedule(newSched);
 
       if (newSched.isToday) {
         _tabController.animateTo(0);
@@ -214,12 +164,10 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                _schedules.removeWhere((s) => s.id == schedule.id);
-                if (_editingScheduleId == schedule.id) {
-                  _editingScheduleId = null;
-                }
-              });
+              ref.read(scheduleProvider.notifier).deleteSchedule(schedule.id);
+              if (_editingScheduleId == schedule.id) {
+                setState(() => _editingScheduleId = null);
+              }
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -241,6 +189,9 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
 
   @override
   Widget build(BuildContext context) {
+    final schedules = ref.watch(scheduleProvider);
+    final todaySchedules = schedules.where((s) => s.isToday).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -267,10 +218,10 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
         controller: _tabController,
         children: [
           // TAB 1 — SLOTS (Today's Schedules Only)
-          _buildTodaySlotsTab(),
+          _buildTodaySlotsTab(todaySchedules),
 
           // TAB 2 — MANAGE SLOTS (Direct Date Selection & Management)
-          _buildManageSlotsTab(),
+          _buildManageSlotsTab(schedules),
         ],
       ),
     );
@@ -279,10 +230,9 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
   // ==========================================
   // TAB 1 — SLOTS (TODAY'S SCHEDULES ONLY)
   // ==========================================
-  Widget _buildTodaySlotsTab() {
+  Widget _buildTodaySlotsTab(List<CustomSlotSchedule> todaySchedules) {
     final now = DateTime.now();
     final todayFormatted = DateFormat('MMMM d, yyyy').format(now);
-    final todaySchedules = _schedules.where((s) => s.isToday).toList();
 
     if (todaySchedules.isEmpty) {
       return Center(
@@ -349,7 +299,6 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Date: September 3, 2026
           Row(
             children: [
               const Text("Date: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
@@ -357,8 +306,6 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
             ],
           ),
           const SizedBox(height: 8),
-
-          // From: 6:00 AM
           Row(
             children: [
               const Text("From: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
@@ -366,8 +313,6 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
             ],
           ),
           const SizedBox(height: 6),
-
-          // To: 8:00 AM
           Row(
             children: [
               const Text("To: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
@@ -375,8 +320,6 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
             ],
           ),
           const SizedBox(height: 6),
-
-          // Consultation Duration: 4 minutes
           Row(
             children: [
               const Text("Consultation Duration: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
@@ -384,8 +327,6 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
             ],
           ),
           const SizedBox(height: 6),
-
-          // Total Slots: 30
           Row(
             children: [
               const Text("Total Slots: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
@@ -403,7 +344,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
   // ==========================================
   // TAB 2 — MANAGE SLOTS (CREATE & MANAGE)
   // ==========================================
-  Widget _buildManageSlotsTab() {
+  Widget _buildManageSlotsTab(List<CustomSlotSchedule> schedules) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -592,7 +533,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
           const SizedBox(height: AppSpacing.sm),
 
           // Existing Schedules List
-          if (_schedules.isEmpty)
+          if (schedules.isEmpty)
             Container(
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
@@ -605,7 +546,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
               ),
             )
           else
-            ..._schedules.map((schedule) {
+            ...schedules.map((schedule) {
               return Container(
                 margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 padding: const EdgeInsets.all(AppSpacing.md),
