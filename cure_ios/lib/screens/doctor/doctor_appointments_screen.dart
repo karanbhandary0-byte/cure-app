@@ -3,16 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/doctor_provider.dart';
 
 enum ScheduleType { allDays, selectedDays, specificDate }
 
 class DoctorSchedulePlan {
   final String id;
   final ScheduleType type;
-  final List<String> selectedDays; // ['Monday', 'Tuesday', ...]
-  final String? specificDate; // 'September 5, 2026'
+  final List<String> selectedDays; // e.g. ['Monday', 'Tuesday', 'Friday']
+  final String? specificDateKey; // 'yyyy-MM-dd', e.g. '2026-09-03'
+  final String? specificDateDisplay; // 'September 3, 2026'
   final TimeOfDay fromTime;
   final TimeOfDay toTime;
   final int durationMinutes;
@@ -22,20 +21,35 @@ class DoctorSchedulePlan {
     required this.id,
     required this.type,
     this.selectedDays = const [],
-    this.specificDate,
+    this.specificDateKey,
+    this.specificDateDisplay,
     required this.fromTime,
     required this.toTime,
     required this.durationMinutes,
     required this.totalSlots,
   });
 
-  String get displayScheduleTarget {
+  /// Automatically evaluates whether this schedule is active for a given date (Today)
+  bool isActiveForDate(DateTime date) {
     if (type == ScheduleType.allDays) {
-      return "All Days (Monday – Sunday)";
+      return true;
+    } else if (type == ScheduleType.selectedDays) {
+      final weekdayName = DateFormat('EEEE').format(date); // e.g. 'Thursday'
+      return selectedDays.contains(weekdayName);
+    } else if (type == ScheduleType.specificDate) {
+      final dateKey = DateFormat('yyyy-MM-dd').format(date);
+      return specificDateKey == dateKey;
+    }
+    return false;
+  }
+
+  String get targetDescription {
+    if (type == ScheduleType.allDays) {
+      return "All Days (Mon – Sun)";
     } else if (type == ScheduleType.selectedDays) {
       return selectedDays.join(', ');
     } else {
-      return specificDate ?? "Specific Date";
+      return specificDateDisplay ?? "Specific Date";
     }
   }
 }
@@ -50,31 +64,35 @@ class DoctorAppointmentsScreen extends ConsumerStatefulWidget {
 class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // TAB 1: Created Schedules List
-  final List<DoctorSchedulePlan> _schedules = [
+  // Master List of all created schedules in the system
+  final List<DoctorSchedulePlan> _allSchedules = [
+    // Today's schedule (e.g. September 3, 2026)
     DoctorSchedulePlan(
-      id: 'plan_1',
-      type: ScheduleType.selectedDays,
-      selectedDays: ['Monday', 'Tuesday', 'Friday'],
+      id: 'plan_today_01',
+      type: ScheduleType.specificDate,
+      specificDateKey: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      specificDateDisplay: DateFormat('MMMM d, yyyy').format(DateTime.now()),
       fromTime: const TimeOfDay(hour: 6, minute: 0),
       toTime: const TimeOfDay(hour: 8, minute: 0),
       durationMinutes: 4,
       totalSlots: 30,
     ),
+    // Future schedule (Tomorrow) — will stay in Tab 2 until tomorrow!
     DoctorSchedulePlan(
-      id: 'plan_2',
+      id: 'plan_future_01',
       type: ScheduleType.specificDate,
-      specificDate: DateFormat('MMMM d, yyyy').format(DateTime.now()),
-      fromTime: const TimeOfDay(hour: 17, minute: 0), // 5:00 PM
-      toTime: const TimeOfDay(hour: 20, minute: 0), // 8:00 PM
+      specificDateKey: DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 1))),
+      specificDateDisplay: DateFormat('MMMM d, yyyy').format(DateTime.now().add(const Duration(days: 1))),
+      fromTime: const TimeOfDay(hour: 6, minute: 0),
+      toTime: const TimeOfDay(hour: 8, minute: 0),
       durationMinutes: 4,
-      totalSlots: 45,
+      totalSlots: 30,
     ),
   ];
 
-  // TAB 2: Manage Slots State
-  ScheduleType _scheduleType = ScheduleType.selectedDays;
-  final Set<String> _selectedWeekdays = {'Monday', 'Tuesday', 'Friday'};
+  // Tab 2 Form State
+  ScheduleType _scheduleType = ScheduleType.specificDate;
+  final Set<String> _selectedWeekdays = {'Monday', 'Wednesday', 'Friday'};
   DateTime _pickedDate = DateTime.now();
 
   TimeOfDay _fromTime = const TimeOfDay(hour: 6, minute: 0);
@@ -175,7 +193,8 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
       id: "plan_${DateTime.now().millisecondsSinceEpoch}",
       type: _scheduleType,
       selectedDays: _scheduleType == ScheduleType.selectedDays ? _selectedWeekdays.toList() : [],
-      specificDate: _scheduleType == ScheduleType.specificDate ? DateFormat('MMMM d, yyyy').format(_pickedDate) : null,
+      specificDateKey: _scheduleType == ScheduleType.specificDate ? DateFormat('yyyy-MM-dd').format(_pickedDate) : null,
+      specificDateDisplay: _scheduleType == ScheduleType.specificDate ? DateFormat('MMMM d, yyyy').format(_pickedDate) : null,
       fromTime: _fromTime,
       toTime: _toTime,
       durationMinutes: int.tryParse(_durationController.text.trim()) ?? 4,
@@ -183,17 +202,28 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     );
 
     setState(() {
-      _schedules.insert(0, newPlan);
+      _allSchedules.insert(0, newPlan);
     });
 
-    _tabController.animateTo(0);
+    final now = DateTime.now();
+    final isForToday = newPlan.isActiveForDate(now);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("✓ Schedule created successfully! Total: $slots slots per scheduled day."),
-        backgroundColor: const Color(0xFF15803D),
-      ),
-    );
+    if (isForToday) {
+      _tabController.animateTo(0);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("✓ Schedule for TODAY (${DateFormat('MMMM d, yyyy').format(now)}) created and active in Tab 1!"),
+          backgroundColor: const Color(0xFF15803D),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("✓ Schedule saved! It will automatically activate in Tab 1 on ${newPlan.targetDescription}."),
+          backgroundColor: const Color(0xFF0F766E),
+        ),
+      );
+    }
   }
 
   @override
@@ -223,10 +253,10 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
       body: TabBarView(
         controller: _tabController,
         children: [
-          // TAB 1 — SLOTS
-          _buildSlotsTab(),
+          // TAB 1 — SLOTS (Today's Schedules Only)
+          _buildTodaySlotsTab(),
 
-          // TAB 2 — MANAGE SLOTS
+          // TAB 2 — MANAGE SLOTS (Create & Manage All Scheduled Dates)
           _buildManageSlotsTab(),
         ],
       ),
@@ -234,51 +264,64 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
   }
 
   // ==========================================
-  // TAB 1: SLOTS (Simple Card Display Only)
+  // TAB 1 — SLOTS (ONLY EQUAL TO CURRENT DATE)
   // ==========================================
-  Widget _buildSlotsTab() {
-    if (_schedules.isEmpty) {
+  Widget _buildTodaySlotsTab() {
+    final now = DateTime.now();
+    final todayFormatted = DateFormat('MMMM d, yyyy').format(now);
+
+    // Automatically filter schedules that match TODAY
+    final todaySchedules = _allSchedules.where((s) => s.isActiveForDate(now)).toList();
+
+    if (todaySchedules.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.calendar_today_outlined, size: 48, color: AppColors.muted),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              "No schedule created yet",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.onSurface),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "Go to 'Manage Slots' tab to configure your working hours.",
-              style: TextStyle(fontSize: 13, color: AppColors.muted),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            ElevatedButton(
-              onPressed: () => _tabController.animateTo(1),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.event_busy_outlined, size: 48, color: AppColors.muted),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                "No Schedule for Today ($todayFormatted)",
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                textAlign: TextAlign.center,
               ),
-              child: const Text("Create Schedule"),
-            ),
-          ],
+              const SizedBox(height: 6),
+              const Text(
+                "Go to 'Manage Slots' to create a schedule for today or upcoming days.",
+                style: TextStyle(fontSize: 13, color: AppColors.muted),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              ElevatedButton(
+                onPressed: () => _tabController.animateTo(1),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F766E),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text("Create Schedule for Today", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      itemCount: _schedules.length,
+      itemCount: todaySchedules.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
-        final plan = _schedules[index];
-        return _buildScheduleCard(plan);
+        final plan = todaySchedules[index];
+        return _buildTodayScheduleCard(plan, todayFormatted);
       },
     );
   }
 
-  Widget _buildScheduleCard(DoctorSchedulePlan plan) {
+  Widget _buildTodayScheduleCard(DoctorSchedulePlan plan, String todayDateString) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -292,19 +335,16 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Target / Date
+          // Date (Must display current system date)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Date / Days: ",
+                "Date: ",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface),
               ),
-              Expanded(
-                child: Text(
-                  plan.displayScheduleTarget,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF0F766E), fontWeight: FontWeight.bold),
-                ),
+              Text(
+                todayDateString,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF0F766E), fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -353,7 +393,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
   }
 
   // ==========================================
-  // TAB 2: MANAGE SLOTS (Step-by-Step Simple UX)
+  // TAB 2 — MANAGE SLOTS
   // ==========================================
   Widget _buildManageSlotsTab() {
     return SingleChildScrollView(
@@ -588,7 +628,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                 const Divider(color: AppColors.border),
                 const SizedBox(height: AppSpacing.md),
 
-                // Live Total Slots Display (Only show the big number)
+                // Live Total Slots Display (Only the calculated number)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -630,6 +670,84 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
               ),
             ),
           ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // All Managed Schedules Section (Overview for the doctor)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "All Configured Schedules",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.onSurface),
+              ),
+              Text(
+                "${_allSchedules.length} configured",
+                style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          ..._allSchedules.map((plan) {
+            final isToday = plan.isActiveForDate(DateTime.now());
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isToday ? const Color(0xFF0F766E) : AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              plan.targetDescription,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            if (isToday) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDCFCE7),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  "Active in Tab 1 Today",
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "${_formatTime(plan.fromTime)} – ${_formatTime(plan.toTime)} · ${plan.durationMinutes} min/slot · ${plan.totalSlots} Slots",
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                    onPressed: () {
+                      setState(() {
+                        _allSchedules.remove(plan);
+                      });
+                    },
+                    tooltip: "Delete Schedule",
+                  ),
+                ],
+              ),
+            );
+          }),
+
           const SizedBox(height: 40),
         ],
       ),
