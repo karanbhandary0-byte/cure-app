@@ -5,7 +5,40 @@ import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/doctor_provider.dart';
-import '../../models/slot.dart';
+
+enum ScheduleType { allDays, selectedDays, specificDate }
+
+class DoctorSchedulePlan {
+  final String id;
+  final ScheduleType type;
+  final List<String> selectedDays; // ['Monday', 'Tuesday', ...]
+  final String? specificDate; // 'September 5, 2026'
+  final TimeOfDay fromTime;
+  final TimeOfDay toTime;
+  final int durationMinutes;
+  final int totalSlots;
+
+  DoctorSchedulePlan({
+    required this.id,
+    required this.type,
+    this.selectedDays = const [],
+    this.specificDate,
+    required this.fromTime,
+    required this.toTime,
+    required this.durationMinutes,
+    required this.totalSlots,
+  });
+
+  String get displayScheduleTarget {
+    if (type == ScheduleType.allDays) {
+      return "All Days (Monday – Sunday)";
+    } else if (type == ScheduleType.selectedDays) {
+      return selectedDays.join(', ');
+    } else {
+      return specificDate ?? "Specific Date";
+    }
+  }
+}
 
 class DoctorAppointmentsScreen extends ConsumerStatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -14,469 +47,592 @@ class DoctorAppointmentsScreen extends ConsumerStatefulWidget {
   ConsumerState<DoctorAppointmentsScreen> createState() => _DoctorAppointmentsScreenState();
 }
 
-class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScreen> {
-  // Session 1: Morning (Default 6:00 AM – 8:00 AM, 4 min)
-  TimeOfDay _startTime1 = const TimeOfDay(hour: 6, minute: 0);
-  TimeOfDay _endTime1 = const TimeOfDay(hour: 8, minute: 0);
-  int _duration1 = 4;
+class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
-  // Session 2: Evening (Optional Toggle)
-  bool _enableSession2 = true;
-  TimeOfDay _startTime2 = const TimeOfDay(hour: 17, minute: 0); // 5:00 PM
-  TimeOfDay _endTime2 = const TimeOfDay(hour: 20, minute: 0); // 8:00 PM
-  int _duration2 = 4;
+  // TAB 1: Created Schedules List
+  final List<DoctorSchedulePlan> _schedules = [
+    DoctorSchedulePlan(
+      id: 'plan_1',
+      type: ScheduleType.selectedDays,
+      selectedDays: ['Monday', 'Tuesday', 'Friday'],
+      fromTime: const TimeOfDay(hour: 6, minute: 0),
+      toTime: const TimeOfDay(hour: 8, minute: 0),
+      durationMinutes: 4,
+      totalSlots: 30,
+    ),
+    DoctorSchedulePlan(
+      id: 'plan_2',
+      type: ScheduleType.specificDate,
+      specificDate: DateFormat('MMMM d, yyyy').format(DateTime.now()),
+      fromTime: const TimeOfDay(hour: 17, minute: 0), // 5:00 PM
+      toTime: const TimeOfDay(hour: 20, minute: 0), // 8:00 PM
+      durationMinutes: 4,
+      totalSlots: 45,
+    ),
+  ];
 
-  List<AppointmentSlot> _slots = [];
-  bool _isGenerated = false;
+  // TAB 2: Manage Slots State
+  ScheduleType _scheduleType = ScheduleType.selectedDays;
+  final Set<String> _selectedWeekdays = {'Monday', 'Tuesday', 'Friday'};
+  DateTime _pickedDate = DateTime.now();
+
+  TimeOfDay _fromTime = const TimeOfDay(hour: 6, minute: 0);
+  TimeOfDay _toTime = const TimeOfDay(hour: 8, minute: 0);
+  final TextEditingController _durationController = TextEditingController(text: "4");
+
+  final List<String> _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _generateSlots();
+    _tabController = TabController(length: 2, vsync: this);
   }
 
-  void _generateSlots() {
-    final List<AppointmentSlot> newSlots = [];
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    // 1. Generate Session 1 Slots
-    int startMin1 = _startTime1.hour * 60 + _startTime1.minute;
-    int endMin1 = _endTime1.hour * 60 + _endTime1.minute;
-    int total1 = endMin1 - startMin1;
-    if (total1 > 0 && _duration1 > 0) {
-      int count1 = total1 ~/ _duration1;
-      for (int i = 0; i < count1; i++) {
-        int s = startMin1 + (i * _duration1);
-        int e = s + _duration1;
-        newSlots.add(
-          AppointmentSlot(
-            id: 'slot_1_${i + 1}',
-            doctorId: 'doc_demo_001',
-            sessionName: 'Morning Session',
-            date: today,
-            startTime: _formatTimeOfDay(TimeOfDay(hour: s ~/ 60, minute: s % 60)),
-            endTime: _formatTimeOfDay(TimeOfDay(hour: e ~/ 60, minute: e % 60)),
-            startMinutes: s,
-            endMinutes: e,
-            durationMin: _duration1,
-            tokenNumber: (i + 1).toString().padLeft(2, '0'),
-            status: i == 0 ? 'booked' : (i == 1 ? 'checked_in' : 'available'),
-            patientName: i == 0 ? 'John Doe' : (i == 1 ? 'Sarah Connor (Walk-in)' : null),
-          ),
-        );
-      }
-    }
-
-    // 2. Generate Session 2 Slots (if enabled)
-    if (_enableSession2) {
-      int startMin2 = _startTime2.hour * 60 + _startTime2.minute;
-      int endMin2 = _endTime2.hour * 60 + _endTime2.minute;
-      int total2 = endMin2 - startMin2;
-      if (total2 > 0 && _duration2 > 0) {
-        int count2 = total2 ~/ _duration2;
-        for (int i = 0; i < count2; i++) {
-          int s = startMin2 + (i * _duration2);
-          int e = s + _duration2;
-          newSlots.add(
-            AppointmentSlot(
-              id: 'slot_2_${i + 1}',
-              doctorId: 'doc_demo_001',
-              sessionName: 'Evening Session',
-              date: today,
-              startTime: _formatTimeOfDay(TimeOfDay(hour: s ~/ 60, minute: s % 60)),
-              endTime: _formatTimeOfDay(TimeOfDay(hour: e ~/ 60, minute: e % 60)),
-              startMinutes: s,
-              endMinutes: e,
-              durationMin: _duration2,
-              tokenNumber: (newSlots.length + 1).toString().padLeft(2, '0'),
-              status: 'available',
-            ),
-          );
-        }
-      }
-    }
-
-    setState(() {
-      _slots = newSlots;
-      _isGenerated = true;
-    });
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _durationController.dispose();
+    super.dispose();
   }
 
-  String _formatTimeOfDay(TimeOfDay t) {
+  int get _calculatedTotalSlots {
+    int startMinutes = _fromTime.hour * 60 + _fromTime.minute;
+    int endMinutes = _toTime.hour * 60 + _toTime.minute;
+    int totalWorkingMinutes = endMinutes - startMinutes;
+    int duration = int.tryParse(_durationController.text.trim()) ?? 0;
+
+    if (totalWorkingMinutes <= 0 || duration <= 0) return 0;
+    return totalWorkingMinutes ~/ duration;
+  }
+
+  String _formatTime(TimeOfDay t) {
     final now = DateTime.now();
     final dt = DateTime(now.year, now.month, now.day, t.hour, t.minute);
     return DateFormat('h:mm a').format(dt);
   }
 
-  Future<void> _pickTime(BuildContext context, bool isStart, int sessionNum) async {
-    final current = sessionNum == 1
-        ? (isStart ? _startTime1 : _endTime1)
-        : (isStart ? _startTime2 : _endTime2);
-
+  Future<void> _selectTime(bool isFrom) async {
+    final current = isFrom ? _fromTime : _toTime;
     final picked = await showTimePicker(
       context: context,
       initialTime: current,
-      helpText: isStart ? "SELECT START TIME (AM/PM)" : "SELECT END TIME (AM/PM)",
+      helpText: isFrom ? "SELECT FROM TIME (AM/PM)" : "SELECT TO TIME (AM/PM)",
     );
-
     if (picked != null) {
       setState(() {
-        if (sessionNum == 1) {
-          if (isStart) _startTime1 = picked;
-          else _endTime1 = picked;
-        } else {
-          if (isStart) _startTime2 = picked;
-          else _endTime2 = picked;
-        }
+        if (isFrom) _fromTime = picked;
+        else _toTime = picked;
       });
     }
   }
 
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _pickedDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 7)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      setState(() {
+        _pickedDate = picked;
+      });
+    }
+  }
+
+  void _createSchedule() {
+    final slots = _calculatedTotalSlots;
+    if (slots <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please make sure To Time is later than From Time and duration is greater than 0."),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    if (_scheduleType == ScheduleType.selectedDays && _selectedWeekdays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select at least one day of the week."),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    final newPlan = DoctorSchedulePlan(
+      id: "plan_${DateTime.now().millisecondsSinceEpoch}",
+      type: _scheduleType,
+      selectedDays: _scheduleType == ScheduleType.selectedDays ? _selectedWeekdays.toList() : [],
+      specificDate: _scheduleType == ScheduleType.specificDate ? DateFormat('MMMM d, yyyy').format(_pickedDate) : null,
+      fromTime: _fromTime,
+      toTime: _toTime,
+      durationMinutes: int.tryParse(_durationController.text.trim()) ?? 4,
+      totalSlots: slots,
+    );
+
+    setState(() {
+      _schedules.insert(0, newPlan);
+    });
+
+    _tabController.animateTo(0);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("✓ Schedule created successfully! Total: $slots slots per scheduled day."),
+        backgroundColor: const Color(0xFF15803D),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    int totalSlots = _slots.length;
-    int availableCount = _slots.where((s) => s.status == 'available').length;
-    int bookedCount = _slots.where((s) => s.status == 'booked' || s.status == 'checked_in').length;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
         title: const Text(
-          "Doctor Schedule & Slots",
+          "Doctor Slot Management",
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onSurface),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Morning Session Box
-            _buildSessionBox(
-              title: "Morning Working Hours",
-              startTime: _startTime1,
-              endTime: _endTime1,
-              duration: _duration1,
-              onPickStart: () => _pickTime(context, true, 1),
-              onPickEnd: () => _pickTime(context, false, 1),
-              onDurationChanged: (v) => setState(() => _duration1 = v),
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Evening Session Box (Collapsible / Toggleable)
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Evening Working Hours (Optional)",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      Switch(
-                        value: _enableSession2,
-                        activeColor: const Color(0xFF0F766E),
-                        onChanged: (val) => setState(() => _enableSession2 = val),
-                      ),
-                    ],
-                  ),
-                  if (_enableSession2) ...[
-                    const Divider(color: AppColors.border),
-                    const SizedBox(height: 8),
-                    _buildTimeDurationRow(
-                      startTime: _startTime2,
-                      endTime: _endTime2,
-                      duration: _duration2,
-                      onPickStart: () => _pickTime(context, true, 2),
-                      onPickEnd: () => _pickTime(context, false, 2),
-                      onDurationChanged: (v) => setState(() => _duration2 = v),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Big 1-Tap Generate Slots Button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                key: const Key("generate-slots-btn"),
-                onPressed: () {
-                  _generateSlots();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("✓ Generated $totalSlots slots successfully!"),
-                      backgroundColor: const Color(0xFF15803D),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.bolt, color: Colors.white),
-                label: const Text(
-                  "Generate Slots",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-
-            // Summary Bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Today's Slots ($totalSlots Total)",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.onSurface),
-                ),
-                Row(
-                  children: [
-                    _statusBadge("Available ($availableCount)", const Color(0xFFDCFCE7), const Color(0xFF15803D)),
-                    const SizedBox(width: 6),
-                    _statusBadge("Booked ($bookedCount)", const Color(0xFFDBEAFE), const Color(0xFF1D4ED8)),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Slots List (Clean & Simple)
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _slots.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (context, index) {
-                final slot = _slots[index];
-                final isAvailable = slot.status == 'available';
-
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      // Token
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "#${slot.tokenNumber}",
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Time (e.g. 6:00 AM – 6:04 AM)
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "${slot.startTime} – ${slot.endTime}",
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            if (slot.patientName != null) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                "Patient: ${slot.patientName}",
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      // Status Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isAvailable ? const Color(0xFFDCFCE7) : const Color(0xFFDBEAFE),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          isAvailable ? "Available" : "Booked",
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isAvailable ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 40),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: const Color(0xFF0F766E),
+          indicatorWeight: 3,
+          labelColor: const Color(0xFF0F766E),
+          unselectedLabelColor: AppColors.muted,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          tabs: const [
+            Tab(text: "Slots"),
+            Tab(text: "Manage Slots"),
           ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1 — SLOTS
+          _buildSlotsTab(),
+
+          // TAB 2 — MANAGE SLOTS
+          _buildManageSlotsTab(),
+        ],
       ),
     );
   }
 
-  Widget _buildSessionBox({
-    required String title,
-    required TimeOfDay startTime,
-    required TimeOfDay endTime,
-    required int duration,
-    required VoidCallback onPickStart,
-    required VoidCallback onPickEnd,
-    required ValueChanged<int> onDurationChanged,
-  }) {
+  // ==========================================
+  // TAB 1: SLOTS (Simple Card Display Only)
+  // ==========================================
+  Widget _buildSlotsTab() {
+    if (_schedules.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.calendar_today_outlined, size: 48, color: AppColors.muted),
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              "No schedule created yet",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              "Go to 'Manage Slots' tab to configure your working hours.",
+              style: TextStyle(fontSize: 13, color: AppColors.muted),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ElevatedButton(
+              onPressed: () => _tabController.animateTo(1),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("Create Schedule"),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      itemCount: _schedules.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+      itemBuilder: (context, index) {
+        final plan = _schedules[index];
+        return _buildScheduleCard(plan);
+      },
+    );
+  }
+
+  Widget _buildScheduleCard(DoctorSchedulePlan plan) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(color: Color(0x05000000), blurRadius: 4, offset: Offset(0, 2)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          const SizedBox(height: 12),
-          _buildTimeDurationRow(
-            startTime: startTime,
-            endTime: endTime,
-            duration: duration,
-            onPickStart: onPickStart,
-            onPickEnd: onPickEnd,
-            onDurationChanged: onDurationChanged,
+          // Target / Date
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Date / Days: ",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface),
+              ),
+              Expanded(
+                child: Text(
+                  plan.displayScheduleTarget,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF0F766E), fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // From
+          Row(
+            children: [
+              const Text("From: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
+              Text(_formatTime(plan.fromTime), style: const TextStyle(fontSize: 14, color: Color(0xFF334155))),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // To
+          Row(
+            children: [
+              const Text("To: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
+              Text(_formatTime(plan.toTime), style: const TextStyle(fontSize: 14, color: Color(0xFF334155))),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Consultation Duration
+          Row(
+            children: [
+              const Text("Consultation Duration: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
+              Text("${plan.durationMinutes} minutes", style: const TextStyle(fontSize: 14, color: Color(0xFF334155))),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Total Slots
+          Row(
+            children: [
+              const Text("Total Slots: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.onSurface)),
+              Text(
+                "${plan.totalSlots}",
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTimeDurationRow({
-    required TimeOfDay startTime,
-    required TimeOfDay endTime,
-    required int duration,
-    required VoidCallback onPickStart,
-    required VoidCallback onPickEnd,
-    required ValueChanged<int> onDurationChanged,
-  }) {
-    return Row(
-      children: [
-        // Start Time
-        Expanded(
-          child: InkWell(
-            onTap: onPickStart,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Start Time", style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatTimeOfDay(startTime),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+  // ==========================================
+  // TAB 2: MANAGE SLOTS (Step-by-Step Simple UX)
+  // ==========================================
+  Widget _buildManageSlotsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Step 1: Select Schedule Type
+          const Text(
+            "Step 1 — Select Schedule Type",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.onSurface),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                RadioListTile<ScheduleType>(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: const Color(0xFF0F766E),
+                  title: const Text("All Days", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text("Apply the same schedule from Monday to Sunday.", style: TextStyle(fontSize: 12)),
+                  value: ScheduleType.allDays,
+                  groupValue: _scheduleType,
+                  onChanged: (val) {
+                    if (val != null) setState(() => _scheduleType = val);
+                  },
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                RadioListTile<ScheduleType>(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: const Color(0xFF0F766E),
+                  title: const Text("Selected Days", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text("Select one or more specific days of the week.", style: TextStyle(fontSize: 12)),
+                  value: ScheduleType.selectedDays,
+                  groupValue: _scheduleType,
+                  onChanged: (val) {
+                    if (val != null) setState(() => _scheduleType = val);
+                  },
+                ),
+                if (_scheduleType == ScheduleType.selectedDays) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: _weekdays.map((day) {
+                        final isChecked = _selectedWeekdays.contains(day);
+                        return CheckboxListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          dense: true,
+                          activeColor: const Color(0xFF0F766E),
+                          title: Text(day, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          value: isChecked,
+                          onChanged: (val) {
+                            setState(() {
+                              if (val == true) {
+                                _selectedWeekdays.add(day);
+                              } else {
+                                _selectedWeekdays.remove(day);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ],
+                const Divider(height: 1, color: AppColors.border),
+                RadioListTile<ScheduleType>(
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: const Color(0xFF0F766E),
+                  title: const Text("Specific Date", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text("Select one particular date using a date picker.", style: TextStyle(fontSize: 12)),
+                  value: ScheduleType.specificDate,
+                  groupValue: _scheduleType,
+                  onChanged: (val) {
+                    if (val != null) setState(() => _scheduleType = val);
+                  },
+                ),
+                if (_scheduleType == ScheduleType.specificDate) ...[
+                  const SizedBox(height: 6),
+                  InkWell(
+                    onTap: _selectDate,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            DateFormat('MMMM d, yyyy').format(_pickedDate),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F766E)),
+                          ),
+                          const Icon(Icons.calendar_month, color: Color(0xFF0F766E), size: 18),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Step 2: Enter Schedule
+          const Text(
+            "Step 2 — Enter Schedule",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.onSurface),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // From Time
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 120,
+                      child: Text("From Time:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _selectTime(true),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatTime(_fromTime),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const Icon(Icons.access_time, size: 16, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // To Time
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 120,
+                      child: Text("To Time:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _selectTime(false),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatTime(_toTime),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const Icon(Icons.access_time, size: 16, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Consultation Duration
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 120,
+                      child: Text("Duration:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child: TextField(
+                        controller: _durationController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: const Color(0xFFF1F5F9),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text("minutes", style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const Divider(color: AppColors.border),
+                const SizedBox(height: AppSpacing.md),
+
+                // Live Total Slots Display (Only show the big number)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Total Slots",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.onSurface),
+                    ),
+                    Text(
+                      "$_calculatedTotalSlots",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 24,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Step 3: Create Schedule Button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              key: const Key("create-schedule-btn"),
+              onPressed: _createSchedule,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: const Text(
+                "Create Schedule",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-
-        // End Time
-        Expanded(
-          child: InkWell(
-            onTap: onPickEnd,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("End Time", style: TextStyle(fontSize: 11, color: AppColors.muted)),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatTimeOfDay(endTime),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // Duration (in minutes)
-        Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Duration", style: TextStyle(fontSize: 11, color: AppColors.muted)),
-              DropdownButton<int>(
-                value: duration,
-                isDense: true,
-                underline: const SizedBox(),
-                items: const [
-                  DropdownMenuItem(value: 3, child: Text("3 min", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DropdownMenuItem(value: 4, child: Text("4 min", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DropdownMenuItem(value: 5, child: Text("5 min", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DropdownMenuItem(value: 10, child: Text("10 min", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DropdownMenuItem(value: 15, child: Text("15 min", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                ],
-                onChanged: (v) {
-                  if (v != null) onDurationChanged(v);
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _statusBadge(String text, Color bg, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-      child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
+          const SizedBox(height: 40),
+        ],
+      ),
     );
   }
 }
