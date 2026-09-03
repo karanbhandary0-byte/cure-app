@@ -311,8 +311,8 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                   child: InkWell(
-                    key: const Key("status-card"),
-                    onTap: () => _showStatusModal(doctor),
+                    key: const Key("status-card-button"),
+                    onTap: () => _showStatusSelector(context, doctor),
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                     child: Container(
                       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -362,6 +362,60 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
                             ),
                           ),
                           Icon(Icons.chevron_right, size: 22, color: meta.color),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+
+                // Slot Generator Quick Card
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: InkWell(
+                    key: const Key("quick-slot-config-card"),
+                    onTap: () => context.go('/doctor/appointments'),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0F766E), Color(0xFF115E59)],
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x140F766E), blurRadius: 8, offset: Offset(0, 3)),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: const Icon(Icons.tune_rounded, color: Colors.white, size: 22),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Working Hours & 4-Min Slot Generator",
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  "Configure Morning (6–8 AM) & Evening (5–8 PM) sessions",
+                                  style: TextStyle(color: Color(0xFFCCFBF1), fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
                         ],
                       ),
                     ),

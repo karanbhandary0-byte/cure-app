@@ -35,7 +35,7 @@ jobs:
         working-directory: cure_ios
         run: |
           flutter pub get
-          flutter build web --release --base-href="/cure-app/"
+          flutter build web --release --base-href="/cure-app/" --pwa-strategy=none
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
