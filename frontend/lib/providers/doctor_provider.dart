@@ -8,6 +8,7 @@ import '../models/appointment.dart';
 import '../models/feedback.dart';
 import '../models/slot.dart';
 import '../models/consultation.dart';
+import 'schedule_provider.dart';
 
 class DoctorDashboardState {
   final bool isLoading;
@@ -327,10 +328,43 @@ final patientDetailProvider =
         consultations: consults,
         feedbacks: fbs,
       );
-    }
   } catch (_) {}
 
-  // 3. Fallback to default patient profile for smooth UI demo
+  // 3. Check Booked Schedule / Walk-in Patients State
+  final bookedPatients = ref.watch(bookedSchedulePatientsProvider);
+  final booked = bookedPatients.cast<BookedPatientScheduleItem?>().firstWhere(
+    (p) => p?.id == patientId,
+    orElse: () => null,
+  );
+
+  if (booked != null) {
+    return PatientDetailState(
+      isLoading: false,
+      patient: Patient(
+        id: booked.id,
+        name: booked.name,
+        phone: "+91 98765 43210",
+        age: booked.age,
+        gender: booked.gender,
+        allergies: "None",
+      ),
+      appointments: [
+        Appointment(
+          id: 'appt_${booked.id}',
+          doctorId: 'doc_demo_1',
+          patientId: booked.id,
+          tokenNumber: booked.slotNumber,
+          scheduledAt: booked.date,
+          status: booked.status,
+          patientName: booked.name,
+        ),
+      ],
+      consultations: [],
+      feedbacks: [],
+    );
+  }
+
+  // 4. Fallback to default patient profile for smooth UI demo
   final fallbackPatient = Patient(
     id: patientId,
     name: "Patient (${patientId.length > 8 ? patientId.substring(0, 8) : patientId})",

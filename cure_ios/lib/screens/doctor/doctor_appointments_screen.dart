@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
 import '../../providers/doctor_provider.dart';
 import '../../providers/schedule_provider.dart';
-import '../../models/appointment.dart';
 
 class DoctorAppointmentsScreen extends ConsumerStatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -57,6 +57,12 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     }
   }
 
+  void _openConsultationNotes(String patientId) {
+    if (patientId.isNotEmpty) {
+      context.push('/doctor/patient/$patientId');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(doctorDashboardProvider);
@@ -80,6 +86,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     for (int i = 0; i < dateSchedulePatients.length; i++) {
       final p = dateSchedulePatients[i];
       displayRows.add({
+        'id': p.id,
         'slotNo': p.slotNumber > 0 ? p.slotNumber : (i + 1),
         'name': p.name,
         'age': p.age.toString(),
@@ -91,8 +98,10 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     // Add any non-duplicate server appointments
     for (final a in serverAppointments) {
       final name = a.patientName ?? (a.patient?.name ?? 'Patient');
+      final patientId = a.patientId.isNotEmpty ? a.patientId : (a.patient?.id ?? a.id);
       if (!displayRows.any((r) => r['name'] == name)) {
         displayRows.add({
+          'id': patientId,
           'slotNo': a.tokenNumber > 0 ? a.tokenNumber : (displayRows.length + 1),
           'name': name,
           'age': a.patient?.age?.toString() ?? '—',
@@ -164,11 +173,9 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          isToday
-                              ? "Showing today's booked & walk-in patients"
-                              : "Showing patients for selected date",
-                          style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                        const Text(
+                          "Tap on any patient to view details & consultation notes",
+                          style: TextStyle(fontSize: 12, color: AppColors.muted),
                         ),
                       ],
                     ),
@@ -250,8 +257,8 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                   borderRadius: BorderRadius.circular(12),
                   child: Table(
                     columnWidths: const {
-                      0: FlexColumnWidth(1.2), // Slot No.
-                      1: FlexColumnWidth(2.4), // Patient Name
+                      0: FlexColumnWidth(1.1), // Slot No.
+                      1: FlexColumnWidth(2.5), // Patient Name
                       2: FlexColumnWidth(1.0), // Age
                       3: FlexColumnWidth(2.2), // Booked Slot Time
                     },
@@ -274,6 +281,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                       ...displayRows.asMap().entries.map((entry) {
                         final index = entry.key;
                         final row = entry.value;
+                        final patientId = row['id']?.toString() ?? '';
                         final isEven = index % 2 == 0;
 
                         return TableRow(
@@ -286,15 +294,21 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                               row['slotNo'].toString(),
                               isBold: true,
                               color: const Color(0xFF0F766E),
+                              onTap: () => _openConsultationNotes(patientId),
+                            ),
+                            _buildPatientNameCell(
+                              row['name'].toString(),
+                              row['isWalkIn'] == true,
+                              onTap: () => _openConsultationNotes(patientId),
                             ),
                             _buildDataCell(
-                              row['name'].toString(),
-                              isBold: true,
+                              row['age'].toString(),
+                              onTap: () => _openConsultationNotes(patientId),
                             ),
-                            _buildDataCell(row['age'].toString()),
                             _buildDataCell(
                               row['time'].toString(),
                               color: const Color(0xFF334155),
+                              onTap: () => _openConsultationNotes(patientId),
                             ),
                           ],
                         );
@@ -325,15 +339,46 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     );
   }
 
-  Widget _buildDataCell(String text, {bool isBold = false, Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-          color: color ?? const Color(0xFF334155),
+  Widget _buildPatientNameCell(String name, bool isWalkIn, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F766E),
+                  decoration: TextDecoration.underline,
+                  decorationColor: Color(0x600F766E),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.edit_note, size: 16, color: Color(0xFF0F766E)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataCell(String text, {bool isBold = false, Color? color, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+            color: color ?? const Color(0xFF334155),
+          ),
         ),
       ),
     );
