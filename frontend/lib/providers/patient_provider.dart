@@ -214,7 +214,7 @@ class PatientMembersState {
 
   PatientMembersState copyWith({
     List<PatientMember>? members,
-    PatientMember>? selectedMember,
+    PatientMember? selectedMember,
   }) {
     return PatientMembersState(
       members: members ?? this.members,

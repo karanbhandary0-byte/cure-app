@@ -100,9 +100,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   Icon(Icons.person_add_alt_1, color: Color(0xFF0F766E), size: 18),
                                   SizedBox(width: 8),
                                   Text(
@@ -751,7 +751,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            next.specialty ?? "General Physician",
+                            next.doctor?.specialty ?? next.reason ?? "General Physician",
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.muted,
@@ -763,9 +763,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                               const Icon(Icons.access_time, size: 16, color: AppColors.brand),
                               const SizedBox(width: AppSpacing.xs),
                               Text(
-                                next.scheduledTime != null
-                                    ? DateFormat("EEE, MMM d · h:mm a").format(next.scheduledTime!)
-                                    : "Today · In Queue",
+                                DateFormat("EEE, MMM d · h:mm a").format(next.scheduledAt),
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -913,7 +911,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                     ),
                                     Text(
-                                      appt.specialty ?? "Consultation",
+                                      appt.doctor?.specialty ?? appt.reason ?? "Consultation",
                                       style: const TextStyle(color: AppColors.muted, fontSize: 12),
                                     ),
                                   ],
