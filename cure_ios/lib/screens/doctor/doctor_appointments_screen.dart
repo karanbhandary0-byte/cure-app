@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
 import '../../providers/doctor_provider.dart';
+import '../../providers/schedule_provider.dart';
 import '../../models/appointment.dart';
-import '../../models/user.dart';
 
 class DoctorAppointmentsScreen extends ConsumerStatefulWidget {
   const DoctorAppointmentsScreen({super.key});
@@ -57,60 +57,55 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     }
   }
 
-  // Fallback demo appointments for today if no appointments have been added yet
-  List<Appointment> _getDemoTodayAppointments(DateTime now) {
-    return [
-      Appointment(
-        id: "demo_appt_1",
-        doctorId: "doc_demo_1",
-        patientId: "pat_1",
-        tokenNumber: 1,
-        scheduledAt: DateTime(now.year, now.month, now.day, 16, 5),
-        status: "scheduled",
-        patientName: "Roy",
-        patient: Patient(id: "pat_1", name: "Roy", phone: "+91 98765 43210", age: 35),
-      ),
-      Appointment(
-        id: "demo_appt_2",
-        doctorId: "doc_demo_1",
-        patientId: "pat_2",
-        tokenNumber: 2,
-        scheduledAt: DateTime(now.year, now.month, now.day, 16, 9),
-        status: "scheduled",
-        patientName: "Anjali",
-        patient: Patient(id: "pat_2", name: "Anjali", phone: "+91 98765 43211", age: 28),
-      ),
-      Appointment(
-        id: "demo_appt_3",
-        doctorId: "doc_demo_1",
-        patientId: "pat_3",
-        tokenNumber: 3,
-        scheduledAt: DateTime(now.year, now.month, now.day, 16, 13),
-        status: "scheduled",
-        patientName: "Rahul",
-        patient: Patient(id: "pat_3", name: "Rahul", phone: "+91 98765 43212", age: 42),
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(doctorDashboardProvider);
+    final bookedSchedulePatients = ref.watch(bookedSchedulePatientsProvider);
     final now = DateTime.now();
     final isToday = _isSameDay(_selectedDate, now);
 
-    // Filter appointments for the selected date
-    List<Appointment> dateAppointments = state.appointments
+    // Get patients from the shared schedule provider for the selected date
+    final dateSchedulePatients = bookedSchedulePatients
+        .where((p) => _isSameDay(p.date, _selectedDate))
+        .toList();
+
+    // Also collect any server appointments for the selected date if present
+    final serverAppointments = state.appointments
         .where((a) => _isSameDay(a.scheduledAt, _selectedDate))
         .toList();
 
-    // If today and no server appointments exist yet, provide the default sample appointment list
-    if (isToday && dateAppointments.isEmpty && state.appointments.isEmpty) {
-      dateAppointments = _getDemoTodayAppointments(now);
+    // Merge and format patient items for table display
+    final List<Map<String, dynamic>> displayRows = [];
+
+    for (int i = 0; i < dateSchedulePatients.length; i++) {
+      final p = dateSchedulePatients[i];
+      displayRows.add({
+        'slotNo': p.slotNumber > 0 ? p.slotNumber : (i + 1),
+        'name': p.name,
+        'age': p.age.toString(),
+        'time': p.slotTime,
+        'isWalkIn': p.isWalkIn,
+      });
     }
 
-    // Sort by scheduled time or token number
-    dateAppointments.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    // Add any non-duplicate server appointments
+    for (final a in serverAppointments) {
+      final name = a.patientName ?? (a.patient?.name ?? 'Patient');
+      if (!displayRows.any((r) => r['name'] == name)) {
+        displayRows.add({
+          'slotNo': a.tokenNumber > 0 ? a.tokenNumber : (displayRows.length + 1),
+          'name': name,
+          'age': a.patient?.age?.toString() ?? '—',
+          'time': DateFormat('h:mm a').format(a.scheduledAt),
+          'isWalkIn': false,
+        });
+      }
+    }
+
+    // Ensure slot numbers are strictly ordered 1, 2, 3...
+    for (int i = 0; i < displayRows.length; i++) {
+      displayRows[i]['slotNo'] = i + 1;
+    }
 
     final formattedDate = DateFormat('MMMM d, yyyy').format(_selectedDate);
     final headerTitle = isToday ? "Today — $formattedDate" : "📅 $formattedDate";
@@ -171,8 +166,8 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                         const SizedBox(height: 2),
                         Text(
                           isToday
-                              ? "Showing today's booked patients"
-                              : "Showing booked patients for selected date",
+                              ? "Showing today's booked & walk-in patients"
+                              : "Showing patients for selected date",
                           style: const TextStyle(fontSize: 12, color: AppColors.muted),
                         ),
                       ],
@@ -210,7 +205,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
             const SizedBox(height: AppSpacing.lg),
 
             // Appointments Table
-            if (dateAppointments.isEmpty)
+            if (displayRows.isEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -256,7 +251,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                   child: Table(
                     columnWidths: const {
                       0: FlexColumnWidth(1.2), // Slot No.
-                      1: FlexColumnWidth(2.2), // Patient Name
+                      1: FlexColumnWidth(2.4), // Patient Name
                       2: FlexColumnWidth(1.0), // Age
                       3: FlexColumnWidth(2.2), // Booked Slot Time
                     },
@@ -276,13 +271,9 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                         ],
                       ),
                       // Table Data Rows
-                      ...dateAppointments.asMap().entries.map((entry) {
+                      ...displayRows.asMap().entries.map((entry) {
                         final index = entry.key;
-                        final appt = entry.value;
-                        final slotNo = appt.tokenNumber > 0 ? appt.tokenNumber : (index + 1);
-                        final name = appt.patientName ?? (appt.patient?.name ?? "Patient");
-                        final age = appt.patient?.age?.toString() ?? "—";
-                        final time = DateFormat('h:mm a').format(appt.scheduledAt);
+                        final row = entry.value;
                         final isEven = index % 2 == 0;
 
                         return TableRow(
@@ -292,13 +283,19 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                           ),
                           children: [
                             _buildDataCell(
-                              slotNo.toString(),
+                              row['slotNo'].toString(),
                               isBold: true,
                               color: const Color(0xFF0F766E),
                             ),
-                            _buildDataCell(name, isBold: true),
-                            _buildDataCell(age),
-                            _buildDataCell(time, color: const Color(0xFF334155)),
+                            _buildDataCell(
+                              row['name'].toString(),
+                              isBold: true,
+                            ),
+                            _buildDataCell(row['age'].toString()),
+                            _buildDataCell(
+                              row['time'].toString(),
+                              color: const Color(0xFF334155),
+                            ),
                           ],
                         );
                       }),

@@ -73,3 +73,107 @@ class ScheduleNotifier extends StateNotifier<List<CustomSlotSchedule>> {
 final scheduleProvider = StateNotifierProvider<ScheduleNotifier, List<CustomSlotSchedule>>((ref) {
   return ScheduleNotifier();
 });
+
+// =======================================================
+// BOOKED PATIENTS SCHEDULE STATE (SHARED WITH WALK-INS)
+// =======================================================
+
+class BookedPatientScheduleItem {
+  final String id;
+  final int slotNumber;
+  final String name;
+  final int age;
+  final String gender;
+  final DateTime date;
+  final String slotTime;
+  final bool isWalkIn;
+  final String status;
+
+  BookedPatientScheduleItem({
+    required this.id,
+    required this.slotNumber,
+    required this.name,
+    required this.age,
+    this.gender = 'Other',
+    required this.date,
+    required this.slotTime,
+    this.isWalkIn = false,
+    this.status = 'scheduled',
+  });
+}
+
+class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientScheduleItem>> {
+  BookedSchedulePatientsNotifier()
+      : super([
+          // Default Today Booked Patients
+          BookedPatientScheduleItem(
+            id: 'demo_1',
+            slotNumber: 1,
+            name: 'Roy',
+            age: 35,
+            gender: 'Male',
+            date: DateTime.now(),
+            slotTime: '4:05 PM',
+            isWalkIn: false,
+            status: 'scheduled',
+          ),
+          BookedPatientScheduleItem(
+            id: 'demo_2',
+            slotNumber: 2,
+            name: 'Anjali',
+            age: 28,
+            gender: 'Female',
+            date: DateTime.now(),
+            slotTime: '4:09 PM',
+            isWalkIn: false,
+            status: 'scheduled',
+          ),
+          BookedPatientScheduleItem(
+            id: 'demo_3',
+            slotNumber: 3,
+            name: 'Rahul',
+            age: 42,
+            gender: 'Male',
+            date: DateTime.now(),
+            slotTime: '4:13 PM',
+            isWalkIn: false,
+            status: 'scheduled',
+          ),
+        ]);
+
+  void addWalkInPatient({
+    required String name,
+    required int age,
+    String gender = 'Other',
+    DateTime? date,
+    String? status,
+  }) {
+    final targetDate = date ?? DateTime.now();
+    final sameDayPatients = state.where((p) =>
+        p.date.year == targetDate.year &&
+        p.date.month == targetDate.month &&
+        p.date.day == targetDate.day).toList();
+
+    final nextSlotNo = sameDayPatients.length + 1;
+    final nowTime = DateFormat('h:mm a').format(DateTime.now());
+
+    final newPatient = BookedPatientScheduleItem(
+      id: 'walkin_${DateTime.now().millisecondsSinceEpoch}',
+      slotNumber: nextSlotNo,
+      name: name,
+      age: age,
+      gender: gender,
+      date: targetDate,
+      slotTime: nowTime,
+      isWalkIn: true,
+      status: status ?? 'checked_in',
+    );
+
+    state = [...state, newPatient];
+  }
+}
+
+final bookedSchedulePatientsProvider =
+    StateNotifierProvider<BookedSchedulePatientsNotifier, List<BookedPatientScheduleItem>>((ref) {
+  return BookedSchedulePatientsNotifier();
+});

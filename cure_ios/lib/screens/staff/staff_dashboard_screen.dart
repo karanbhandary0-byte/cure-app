@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/schedule_provider.dart';
 import '../../models/user.dart';
 
 class SimplePatientItem {
@@ -613,6 +614,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                             if (nameCtrl.text.trim().isEmpty) return;
                             final nextToken = (_patients.length + 1).toString().padLeft(2, '0');
                             final nowTime = DateFormat('hh:mm a').format(DateTime.now());
+                            final patientAge = int.tryParse(ageCtrl.text.trim()) ?? 30;
 
                             setState(() {
                               _patients.add(
@@ -621,13 +623,21 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                                   tokenNumber: nextToken,
                                   name: nameCtrl.text.trim(),
                                   gender: gender,
-                                  age: int.tryParse(ageCtrl.text.trim()) ?? 30,
+                                  age: patientAge,
                                   time: 'Walk-In ($nowTime)',
                                   isWalkIn: true,
                                   status: 'arrived',
                                 ),
                               );
                             });
+
+                            // Sync with doctor's schedule list
+                            ref.read(bookedSchedulePatientsProvider.notifier).addWalkInPatient(
+                              name: nameCtrl.text.trim(),
+                              age: patientAge,
+                              gender: gender,
+                              status: 'arrived',
+                            );
 
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -653,6 +663,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                             if (nameCtrl.text.trim().isEmpty) return;
                             final nextToken = (_patients.length + 1).toString().padLeft(2, '0');
                             final nowTime = DateFormat('hh:mm a').format(DateTime.now());
+                            final patientAge = int.tryParse(ageCtrl.text.trim()) ?? 30;
 
                             setState(() {
                               _patients.add(
@@ -661,13 +672,21 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
                                   tokenNumber: nextToken,
                                   name: nameCtrl.text.trim(),
                                   gender: gender,
-                                  age: int.tryParse(ageCtrl.text.trim()) ?? 30,
+                                  age: patientAge,
                                   time: 'Walk-In ($nowTime)',
                                   isWalkIn: true,
                                   status: 'checked_in',
                                 ),
                               );
                             });
+
+                            // Sync with doctor's schedule list
+                            ref.read(bookedSchedulePatientsProvider.notifier).addWalkInPatient(
+                              name: nameCtrl.text.trim(),
+                              age: patientAge,
+                              gender: gender,
+                              status: 'checked_in',
+                            );
 
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
