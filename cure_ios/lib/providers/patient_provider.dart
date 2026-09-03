@@ -202,3 +202,96 @@ final patientLocationProvider =
   final session = ref.watch(sessionServiceProvider);
   return PatientLocationNotifier(session);
 });
+
+class PatientMembersState {
+  final List<PatientMember> members;
+  final PatientMember selectedMember;
+
+  PatientMembersState({
+    required this.members,
+    required this.selectedMember,
+  });
+
+  PatientMembersState copyWith({
+    List<PatientMember>? members,
+    PatientMember>? selectedMember,
+  }) {
+    return PatientMembersState(
+      members: members ?? this.members,
+      selectedMember: selectedMember ?? this.selectedMember,
+    );
+  }
+}
+
+class PatientMembersNotifier extends StateNotifier<PatientMembersState> {
+  PatientMembersNotifier()
+      : super(
+          PatientMembersState(
+            members: [
+              PatientMember(
+                id: 'member_self',
+                name: 'Roy Kumar',
+                ageOrDob: '35 yrs',
+                gender: 'Male',
+                relation: 'Self',
+                isPrimary: true,
+              ),
+              PatientMember(
+                id: 'member_priya',
+                name: 'Priya Kumar',
+                ageOrDob: '32 yrs',
+                gender: 'Female',
+                relation: 'Family (Spouse)',
+              ),
+              PatientMember(
+                id: 'member_aarav',
+                name: 'Aarav Kumar',
+                ageOrDob: '6 yrs',
+                gender: 'Male',
+                relation: 'Family (Child)',
+              ),
+            ],
+            selectedMember: PatientMember(
+              id: 'member_self',
+              name: 'Roy Kumar',
+              ageOrDob: '35 yrs',
+              gender: 'Male',
+              relation: 'Self',
+              isPrimary: true,
+            ),
+          ),
+        );
+
+  void selectMember(PatientMember member) {
+    state = state.copyWith(selectedMember: member);
+  }
+
+  void addMember({
+    required String name,
+    required String ageOrDob,
+    required String gender,
+    required String relation,
+    bool selectAfterAdd = true,
+  }) {
+    final newMember = PatientMember(
+      id: 'member_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      ageOrDob: ageOrDob,
+      gender: gender,
+      relation: relation,
+      isPrimary: false,
+    );
+
+    final updated = [...state.members, newMember];
+    state = state.copyWith(
+      members: updated,
+      selectedMember: selectAfterAdd ? newMember : state.selectedMember,
+    );
+  }
+}
+
+final patientMembersProvider =
+    StateNotifierProvider<PatientMembersNotifier, PatientMembersState>((ref) {
+  return PatientMembersNotifier();
+});
+

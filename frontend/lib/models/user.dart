@@ -123,6 +123,46 @@ class Doctor {
   }
 }
 
+class PatientMember {
+  final String id;
+  final String name;
+  final String ageOrDob;
+  final String gender;
+  final String relation;
+  final bool isPrimary;
+
+  PatientMember({
+    required this.id,
+    required this.name,
+    required this.ageOrDob,
+    required this.gender,
+    required this.relation,
+    this.isPrimary = false,
+  });
+
+  factory PatientMember.fromJson(Map<String, dynamic> json) {
+    return PatientMember(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      ageOrDob: json['age_or_dob']?.toString() ?? json['age']?.toString() ?? '',
+      gender: json['gender']?.toString() ?? 'Male',
+      relation: json['relation']?.toString() ?? 'Family',
+      isPrimary: json['is_primary'] == true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'age_or_dob': ageOrDob,
+      'gender': gender,
+      'relation': relation,
+      'is_primary': isPrimary,
+    };
+  }
+}
+
 class AdminUser {
   final String id;
   final String email;

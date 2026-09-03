@@ -8,6 +8,7 @@ import '../../config/status_meta.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/patient_provider.dart';
 import '../../models/appointment.dart';
+import '../../models/user.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
   const PatientHomeScreen({super.key});
@@ -25,6 +26,514 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     });
   }
 
+  void _showPatientMemberSelectorModal(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFF8FAFC),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final membersState = ref.watch(patientMembersProvider);
+            final members = membersState.members;
+            final selected = membersState.selectedMember;
+            final location = ref.watch(patientLocationProvider);
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Drag Indicator
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Select Patient Profile",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Action Buttons Row (Swiggy Style)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            key: const Key("add-member-action-card"),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _showAddMemberModal(context, ref);
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.person_add_alt_1, color: Color(0xFF0F766E), size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    "Add New Member",
+                                    style: TextStyle(
+                                      color: Color(0xFF0F766E),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _showLocationSelectorModal(context, ref);
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.location_on, color: Color(0xFFE11D48), size: 18),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      location,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF334155),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Section Title
+                    const Text(
+                      "SAVED PATIENT PROFILES",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Members List
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: members.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final member = members[index];
+                          final isSelected = member.id == selected.id;
+
+                          return InkWell(
+                            key: Key("member-card-${member.id}"),
+                            onTap: () {
+                              ref.read(patientMembersProvider.notifier).selectMember(member);
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Active patient profile switched to ${member.name}"),
+                                  backgroundColor: const Color(0xFF0F766E),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFF0F766E) : const Color(0xFFE2E8F0),
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x04000000),
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  // Left Avatar container
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFF0F766E).withOpacity(0.12)
+                                          : const Color(0xFFF1F5F9),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: Icon(
+                                        member.relation.toLowerCase().contains("friend")
+                                            ? Icons.people_outline
+                                            : member.relation.toLowerCase().contains("child")
+                                                ? Icons.child_care
+                                                : Icons.person_outline,
+                                        color: isSelected ? const Color(0xFF0F766E) : const Color(0xFF64748B),
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+
+                                  // Name & Details
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              member.name,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: isSelected ? const Color(0xFF0F766E) : const Color(0xFF1E293B),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF1F5F9),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                member.relation,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF475569),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          "${member.ageOrDob} · ${member.gender}",
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Selected Badge
+                                  if (isSelected)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDCFCE7),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        "SELECTED",
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF16A34A),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    const Icon(Icons.chevron_right, color: Color(0xFF94A3B8), size: 20),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddMemberModal(BuildContext context, WidgetRef ref) {
+    final nameController = TextEditingController();
+    final ageDobController = TextEditingController();
+    String selectedGender = "Male";
+    String selectedRelation = "Family";
+
+    final genderOptions = ["Male", "Female", "Other"];
+    final relationOptions = [
+      "Family",
+      "Friend",
+      "Family (Spouse)",
+      "Family (Child)",
+      "Family (Parent)",
+      "Family (Sibling)",
+      "Other",
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Add Member",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 8),
+
+                    // 1. Full Name
+                    const Text(
+                      "Full name *",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      key: const Key("add-member-name-input"),
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        hintText: "e.g. Roy Kumar / Priya Kumar",
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 2. Date of birth / age
+                    const Text(
+                      "Date of birth / age *",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      key: const Key("add-member-age-input"),
+                      controller: ageDobController,
+                      decoration: InputDecoration(
+                        hintText: "e.g. 35 yrs or 14/05/1991",
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 3. Gender
+                    const Text(
+                      "Gender *",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: genderOptions.map((g) {
+                        final isSelected = selectedGender == g;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(g),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF0F766E),
+                            backgroundColor: const Color(0xFFF1F5F9),
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.white : const Color(0xFF334155),
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 13,
+                            ),
+                            onSelected: (_) {
+                              setModalState(() => selectedGender = g);
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 4. Relation
+                    const Text(
+                      "Relation whether family or friend *",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedRelation,
+                          isExpanded: true,
+                          items: relationOptions.map((rel) {
+                            return DropdownMenuItem(value: rel, child: Text(rel, style: const TextStyle(fontSize: 14)));
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() => selectedRelation = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        key: const Key("save-member-submit-btn"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F766E),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () {
+                          final name = nameController.text.trim();
+                          final age = ageDobController.text.trim();
+
+                          if (name.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please enter member full name.")),
+                            );
+                            return;
+                          }
+
+                          ref.read(patientMembersProvider.notifier).addMember(
+                                name: name,
+                                ageOrDob: age.isNotEmpty ? age : "Age not specified",
+                                gender: selectedGender,
+                                relation: selectedRelation,
+                                selectAfterAdd: true,
+                              );
+
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("Member '$name' added & selected as active patient."),
+                              backgroundColor: const Color(0xFF0F766E),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          "Save & Set Active Member",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(patientHomeProvider);
@@ -36,8 +545,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       );
     }
 
-    final patient = state.patient!;
     final location = ref.watch(patientLocationProvider);
+    final membersState = ref.watch(patientMembersProvider);
+    final activeMember = membersState.selectedMember;
+
     final next = state.appointments.cast<Appointment?>().firstWhere(
           (a) => a?.status == "scheduled" || a?.status == "delayed" || a?.status == "booked",
           orElse: () => null,
@@ -59,56 +570,99 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Location Bar & Header
+                // Swiggy-Style Top Patient Member Switcher & Location Bar
                 Padding(
                   padding: const EdgeInsets.only(left: AppSpacing.xl, right: AppSpacing.xl, top: AppSpacing.lg),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            key: const Key("patient-location-bar"),
-                            onTap: () => _showLocationSelectorModal(context, ref),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.brandTertiary,
-                                borderRadius: BorderRadius.circular(AppRadius.pill),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.location_on, size: 14, color: AppColors.brand),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "Location: $location",
-                                    style: const TextStyle(
-                                      color: AppColors.brand,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
+                      // Active Member & Switcher Tap Area
+                      Expanded(
+                        child: InkWell(
+                          key: const Key("patient-switcher-bar"),
+                          onTap: () => _showPatientMemberSelectorModal(context, ref),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Top location tag
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on, size: 12, color: Color(0xFFE11D48)),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      location,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.brand),
-                                ],
-                              ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+
+                                // Main Member Name Row (Like Swiggy's Location title)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        activeMember.name,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.onSurface,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.keyboard_arrow_down, size: 22, color: Color(0xFF0F766E)),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+
+                                // Subtitle: Relation & Age/Gender
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0F766E).withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        activeMember.relation.toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF0F766E),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "${activeMember.ageOrDob} · ${activeMember.gender}",
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            patient.name,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.onSurface,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
+
+                      // Logout / Profile icon
                       IconButton(
                         key: const Key("logout-button"),
                         onPressed: () {
@@ -124,6 +678,8 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                     ],
                   ),
                 ),
+
+                const SizedBox(height: AppSpacing.sm),
 
                 // Search Bar for Disease / Symptom
                 Padding(
@@ -155,123 +711,120 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   ),
                 ),
 
-                // Doctor Status Banner
-                if (next != null && doctorMeta != null) ...[
-                  Builder(
-                    builder: (context) {
-                      final docName = (next.doctor?.name.isNotEmpty == true)
-                          ? next.doctor!.name
-                          : (next.doctorName?.isNotEmpty == true ? next.doctorName! : 'Doctor');
-                      final delay = next.doctor?.delayMinutes ?? 0;
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                        child: Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: doctorMeta.bg,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                          ),
-                          child: Row(
+                // Active Appointment Hero Banner
+                if (next != null)
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceSecondary,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(doctorMeta.icon, size: 22, color: doctorMeta.color),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "$docName is ${doctorMeta.label}",
-                                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: doctorMeta.color),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    if (delay > 0)
-                                      Text(
-                                        "Running $delay mins late · Expected visit at ${DateFormat.jm().format(next.scheduledAt)}",
-                                        style: TextStyle(fontSize: 13, color: doctorMeta.color),
-                                      )
-                                    else
-                                      Text(
-                                        "Your next visit: ${DateFormat('MMM d, h:mm a').format(next.scheduledAt)}",
-                                        style: TextStyle(fontSize: 13, color: doctorMeta.color),
-                                      ),
-                                  ],
+                              const Text(
+                                "NEXT APPOINTMENT",
+                                style: TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              _StatusTag(status: next.status),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            next.doctorName ?? "Dr. Consultation",
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            next.specialty ?? "General Physician",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time, size: 16, color: AppColors.brand),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                next.scheduledTime != null
+                                    ? DateFormat("EEE, MMM d · h:mm a").format(next.scheduledTime!)
+                                    : "Today · In Queue",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.onSurface,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-
-                // Pending Feedback Card
-                if (state.pendingFeedbackAppts.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: InkWell(
-                      key: const Key("pending-feedback-card"),
-                      onTap: () => context.push('/patient/feedback'),
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      child: Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: AppColors.brand,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          if (doctorMeta != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                              decoration: BoxDecoration(
+                                color: doctorMeta.bg,
+                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                              ),
+                              child: Row(
                                 children: [
-                                  const Text("How are you feeling?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17)),
-                                  const SizedBox(height: 2),
+                                  Icon(Icons.circle, size: 8, color: doctorMeta.color),
+                                  const SizedBox(width: AppSpacing.sm),
                                   Text(
-                                    "Share post-visit feedback (${state.pendingFeedbackAppts.length} pending)",
-                                    style: const TextStyle(color: Color(0xE6FFFFFF), fontSize: 13),
+                                    doctorMeta.label,
+                                    style: TextStyle(
+                                      color: doctorMeta.color,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right, color: Colors.white, size: 22),
                           ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
-                ],
 
-                // Quick Actions Section
-                const Padding(
-                  padding: EdgeInsets.only(left: AppSpacing.xl, right: AppSpacing.xl, top: AppSpacing.lg, bottom: AppSpacing.sm),
-                  child: Text("Quick actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-                ),
+                // Quick Navigation Grid
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                   child: Row(
                     children: [
                       _ActionTile(
-                        key: const Key("book-action"),
-                        icon: Icons.add_circle,
-                        color: AppColors.brand,
-                        label: "Book visit",
+                        icon: Icons.calendar_today,
+                        color: const Color(0xFF0F766E),
+                        label: "Book Visit",
                         onTap: () => context.push('/patient/book'),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       _ActionTile(
-                        key: const Key("records-action"),
-                        icon: Icons.description,
-                        color: AppColors.success,
-                        label: "Records",
+                        icon: Icons.history,
+                        color: const Color(0xFF4F46E5),
+                        label: "Medical History",
                         onTap: () => context.push('/patient/records'),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       _ActionTile(
-                        key: const Key("feedback-action"),
-                        icon: Icons.favorite,
-                        color: AppColors.error,
+                        icon: Icons.rate_review_outlined,
+                        color: const Color(0xFFEA580C),
                         label: "Feedback",
                         onTap: () => context.push('/patient/feedback'),
                       ),
@@ -279,45 +832,100 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   ),
                 ),
 
-                // Appointments Section
-                const Padding(
-                  padding: EdgeInsets.only(left: AppSpacing.xl, right: AppSpacing.xl, top: AppSpacing.lg, bottom: AppSpacing.sm),
-                  child: Text("Your appointments", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+                const SizedBox(height: AppSpacing.xl),
+
+                // Past / Scheduled Appointments Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Your Appointments",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => context.push('/patient/records'),
+                        child: const Text("View all", style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
                 ),
 
                 if (state.appointments.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
-                    child: Text("No appointments yet.", style: TextStyle(color: AppColors.muted)),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceSecondary,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "No appointments booked yet.",
+                          style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
                   )
                 else
-                  ...state.appointments.take(5).map((a) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(color: AppColors.brand, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(a.doctor?.name ?? "Doctor", style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.onSurface, fontSize: 15)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    "${DateFormat('MMM d, h:mm a').format(a.scheduledAt)}${a.reason != null && a.reason!.isNotEmpty ? ' · ${a.reason}' : ''}",
-                                    style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                                  ),
-                                ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: state.appointments.length > 3 ? 3 : state.appointments.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, index) {
+                        final appt = state.appointments[index];
+                        return Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: AppColors.brandTertiary,
+                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                ),
+                                child: const Icon(Icons.medical_services_outlined, color: AppColors.brand, size: 20),
                               ),
-                            ),
-                            _StatusTag(status: a.status),
-                          ],
-                        ),
-                      )),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      appt.doctorName ?? "Doctor",
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                    Text(
+                                      appt.specialty ?? "Consultation",
+                                      style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              _StatusTag(status: appt.status),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
               ],
             ),
           ),
@@ -334,17 +942,21 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       "Mumbai",
       "Delhi",
       "Bangalore",
+      "Indiranagar, Bangalore",
       "Hyderabad",
       "Chennai",
       "Kolkata",
       "Pune",
-      "New York",
+      "Ahmedabad",
+      "Mangaluru",
+      "Manipal",
+      "Udupi",
     ];
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
@@ -366,10 +978,14 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   const Row(
                     children: [
                       Icon(Icons.location_on, color: AppColors.brand, size: 22),
-                      SizedBox(width: 8),
+                      SizedBox(width: AppSpacing.xs),
                       Text(
                         "Select Your Location",
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.onSurface),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onSurface,
+                        ),
                       ),
                     ],
                   ),
@@ -388,7 +1004,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText: "e.g. Bandra West, Mumbai or Connaught Place",
+                  hintText: "e.g. Indiranagar, Bengaluru or Bandra West, Mumbai",
                   prefixIcon: const Icon(Icons.search, color: AppColors.muted),
                   filled: true,
                   fillColor: AppColors.surfaceSecondary,
