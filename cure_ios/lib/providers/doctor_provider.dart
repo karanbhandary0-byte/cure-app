@@ -390,6 +390,7 @@ final patientDetailProvider =
 
 class RecordedConsultation {
   final String id;
+  final String doctorId;
   final String patientId;
   final String appointmentId;
   final String diagnosis;
@@ -401,6 +402,7 @@ class RecordedConsultation {
 
   RecordedConsultation({
     required this.id,
+    required this.doctorId,
     required this.patientId,
     required this.appointmentId,
     required this.diagnosis,
@@ -408,7 +410,7 @@ class RecordedConsultation {
     this.prescriptionImageUrl,
     this.followUpInstructions,
     required this.createdAt,
-    this.doctorName = "Dr. Karan",
+    required this.doctorName,
   });
 }
 
@@ -419,8 +421,10 @@ class RecordedConsultationsNotifier extends StateNotifier<List<RecordedConsultat
     state = [consult, ...state];
   }
 
-  List<RecordedConsultation> getForPatient(String patientId) {
-    return state.where((c) => c.patientId == patientId).toList();
+  List<RecordedConsultation> getForPatientAndDoctor(String patientId, String doctorId) {
+    return state
+        .where((c) => c.patientId == patientId && (doctorId.isEmpty || c.doctorId == doctorId))
+        .toList();
   }
 }
 

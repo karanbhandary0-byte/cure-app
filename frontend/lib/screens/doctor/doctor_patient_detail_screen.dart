@@ -145,10 +145,15 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         ? appointmentId
         : 'appt_${widget.patientId}_${DateTime.now().millisecondsSinceEpoch}';
 
+    final currentDoctor = ref.read(authProvider).currentUser;
+    final doctorId = currentDoctor?.id ?? 'doc_current';
+    final doctorName = currentDoctor?.name ?? 'Dr. Sarah';
+
     // Always record locally in recordedConsultationsProvider so it's instantly available
     ref.read(recordedConsultationsProvider.notifier).addConsultation(
       RecordedConsultation(
         id: 'consult_${DateTime.now().millisecondsSinceEpoch}',
+        doctorId: doctorId,
         patientId: widget.patientId,
         appointmentId: apptId,
         diagnosis: diag,
@@ -156,6 +161,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         prescriptionImageUrl: photo,
         followUpInstructions: followUp,
         createdAt: DateTime.now(),
+        doctorName: doctorName,
       ),
     );
 

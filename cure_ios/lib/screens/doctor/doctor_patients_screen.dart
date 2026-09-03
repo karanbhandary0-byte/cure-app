@@ -39,7 +39,7 @@ class PatientVisitRecord {
     required this.diagnosis,
     required this.medicines,
     required this.doctorInstructions,
-    this.doctorName = "Dr. Karan",
+    this.doctorName = "Dr. Sarah",
     this.prescriptionImageUrl,
   });
 
@@ -164,26 +164,38 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
     }
   }
 
-  // Load / build previous visit records for the selected patient
+  // Load / build previous visit records for the selected patient filtered by current doctor
   Future<void> _selectPatient(Patient patient) async {
     setState(() {
       _selectedPatient = patient;
       _isLoadingVisits = true;
     });
 
+    final currentDoctor = ref.read(authProvider).currentUser;
+    final currentDocId = currentDoctor?.id ?? '';
+    final currentDocName = currentDoctor?.name ?? 'Dr. Sarah';
+
     List<PatientVisitRecord> visits = [];
 
-    // 1. Check locally recorded consultations with uploaded images
+    // 1. Check locally recorded consultations with uploaded images (only by THIS doctor)
     try {
-      final localConsults = ref.read(recordedConsultationsProvider).where((c) =>
-          c.patientId == patient.id ||
-          c.patientId == 'pat_${patient.name.toLowerCase().split(' ').first}' ||
-          patient.name.toLowerCase().contains(c.patientId.toLowerCase())).toList();
+      final localConsults = ref.read(recordedConsultationsProvider).where((c) {
+        final matchesPatient = c.patientId == patient.id ||
+            c.patientId == 'pat_${patient.name.toLowerCase().split(' ').first}' ||
+            patient.name.toLowerCase().contains(c.patientId.toLowerCase());
+
+        final matchesDoctor = currentDocId.isEmpty ||
+            c.doctorId == currentDocId ||
+            c.doctorName.toLowerCase().contains(currentDocName.toLowerCase()) ||
+            currentDocName.toLowerCase().contains(c.doctorName.toLowerCase());
+
+        return matchesPatient && matchesDoctor;
+      }).toList();
 
       for (final c in localConsults) {
         if (!visits.any((v) => v.id == c.id)) {
           visits.add(
-             PatientVisitRecord(
+            PatientVisitRecord(
               id: c.id,
               visitDate: c.createdAt,
               diagnosis: c.diagnosis.isNotEmpty ? c.diagnosis : "Prescription Consultation",
@@ -197,13 +209,18 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
       }
     } catch (_) {}
 
-    // 2. Try fetching live consultations from Firebase or API
+    // 2. Try fetching live consultations from Firebase or API (only by THIS doctor)
     try {
       final fb = ref.read(firebaseServiceProvider);
       final liveConsults = await fb.getPatientConsultations(patient.id);
       if (liveConsults.isNotEmpty) {
         for (final c in liveConsults) {
-          if (!visits.any((v) => v.id == c.id)) {
+          final isDoctorMatch = currentDocId.isEmpty ||
+              c.doctor?.id == currentDocId ||
+              (c.doctor?.name ?? '').toLowerCase().contains(currentDocName.toLowerCase()) ||
+              currentDocName.toLowerCase().contains((c.doctor?.name ?? '').toLowerCase());
+
+          if (isDoctorMatch && !visits.any((v) => v.id == c.id)) {
             visits.add(
               PatientVisitRecord(
                 id: c.id,
@@ -212,6 +229,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                 doctorInstructions: c.followUpInstructions ?? "Take prescribed medicines regularly.",
                 medicines: _parsePrescriptionMedicines(c.prescription),
                 prescriptionImageUrl: c.prescriptionImageUrl,
+                doctorName: c.doctor?.name ?? currentDocName,
               ),
             );
           }
@@ -219,9 +237,9 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
       }
     } catch (_) {}
 
-    // 3. If no live visits found, supply realistic visit history matching the user's specification
+    // 3. If no live visits found, supply realistic visit history matching the user's specification attributed to this doctor
     if (visits.isEmpty) {
-      visits = _getDefaultVisitsForPatient(patient);
+      visits = _getDefaultVisitsForPatient(patient, doctorName: currentDocName);
     }
 
     // Sort newest visits first
@@ -271,12 +289,13 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
           ];
   }
 
-  List<PatientVisitRecord> _getDefaultVisitsForPatient(Patient patient) {
+  List<PatientVisitRecord> _getDefaultVisitsForPatient(Patient patient, {String doctorName = "Dr. Sarah"}) {
     if (patient.name.toLowerCase().contains("roy")) {
       return [
         PatientVisitRecord(
           id: "visit_roy_1",
           visitDate: DateTime(2026, 9, 3),
+          doctorName: doctorName,
           diagnosis: "Acute Viral Pharyngitis & Mild Fever",
           medicines: const [
             PrescriptionItem(
@@ -304,6 +323,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
         PatientVisitRecord(
           id: "visit_roy_2",
           visitDate: DateTime(2026, 8, 20),
+          doctorName: doctorName,
           diagnosis: "Seasonal Allergic Rhinitis",
           medicines: const [
             PrescriptionItem(
@@ -331,6 +351,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
         PatientVisitRecord(
           id: "visit_roy_3",
           visitDate: DateTime(2026, 7, 15),
+          doctorName: doctorName,
           diagnosis: "Routine Health Checkup & Mild Gastritis",
           medicines: const [
             PrescriptionItem(
@@ -355,6 +376,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
         PatientVisitRecord(
           id: "visit_anjali_1",
           visitDate: DateTime(2026, 9, 1),
+          doctorName: doctorName,
           diagnosis: "Tension Headache & Neck Strain",
           medicines: const [
             PrescriptionItem(
@@ -376,6 +398,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
         PatientVisitRecord(
           id: "visit_anjali_2",
           visitDate: DateTime(2026, 8, 14),
+          doctorName: doctorName,
           diagnosis: "Vitamin D Deficiency Followup",
           medicines: const [
             PrescriptionItem(
@@ -394,6 +417,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
         PatientVisitRecord(
           id: "visit_gen_1",
           visitDate: DateTime(2026, 8, 29),
+          doctorName: doctorName,
           diagnosis: "General Health Consultation",
           medicines: const [
             PrescriptionItem(
@@ -415,6 +439,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
         PatientVisitRecord(
           id: "visit_gen_2",
           visitDate: DateTime(2026, 7, 20),
+          doctorName: doctorName,
           diagnosis: "Routine Physical & Vitals Check",
           medicines: const [
             PrescriptionItem(
@@ -866,7 +891,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                 ),
                 SizedBox(height: 2),
                 Text(
-                  "Select a patient to view previous prescriptions and visit history",
+                  "Select a patient to view your uploaded prescriptions and visit history",
                   style: TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
               ],
@@ -1057,6 +1082,9 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
   }
 
   Widget _buildPatientVisitHistoryView(Patient patient) {
+    final currentDoctor = ref.read(authProvider).currentUser;
+    final doctorDisplayName = currentDoctor?.name ?? "Dr. Sarah";
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -1166,7 +1194,7 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                   ),
                 ),
                 Text(
-                  "${_selectedPatientVisits.length} visits recorded",
+                  "${_selectedPatientVisits.length} visits recorded by $doctorDisplayName",
                   style: const TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
               ],
@@ -1190,10 +1218,17 @@ class _DoctorPatientsScreenState extends ConsumerState<DoctorPatientsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: const Center(
-                  child: Text(
-                    "No previous visit records found for this patient.",
-                    style: TextStyle(color: AppColors.muted),
+                child: Center(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.folder_open, size: 40, color: AppColors.muted),
+                      const SizedBox(height: 8),
+                      Text(
+                        "No previous visit or prescription records uploaded by $doctorDisplayName for ${patient.name}.",
+                        style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
               )
