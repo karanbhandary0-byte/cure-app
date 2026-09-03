@@ -168,7 +168,7 @@ final patientHomeProvider =
 class PatientLocationNotifier extends StateNotifier<String> {
   final SessionService _sessionService;
 
-  PatientLocationNotifier(this._sessionService) : super("Mumbai") {
+  PatientLocationNotifier(this._sessionService) : super("Mangalore, Karnataka") {
     _init();
   }
 
@@ -176,7 +176,7 @@ class PatientLocationNotifier extends StateNotifier<String> {
     try {
       final saved = await _sessionService.getPatientLocation();
       if (saved != null && saved.trim().isNotEmpty) {
-        super.state = saved.trim();
+        state = saved.trim();
       }
     } catch (_) {}
   }
@@ -184,8 +184,18 @@ class PatientLocationNotifier extends StateNotifier<String> {
   Future<void> setLocation(String newLocation) async {
     final trimmed = newLocation.trim();
     if (trimmed.isEmpty) return;
-    super.state = trimmed;
-    await _sessionService.savePatientLocation(trimmed);
+    state = trimmed;
+    try {
+      await _sessionService.savePatientLocation(trimmed);
+    } catch (_) {}
+  }
+
+  Future<void> updateCityAndState(String city, String stateName) async {
+    final cleanCity = city.trim();
+    final cleanState = stateName.trim();
+    if (cleanCity.isEmpty) return;
+    final formatted = cleanState.isNotEmpty ? "$cleanCity, $cleanState" : cleanCity;
+    await setLocation(formatted);
   }
 
   @override

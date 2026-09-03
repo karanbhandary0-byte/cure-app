@@ -730,124 +730,210 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
 
   void _showLocationSelectorModal(BuildContext context, WidgetRef ref) {
     final currentLocation = ref.read(patientLocationProvider);
-    final controller = TextEditingController(text: currentLocation);
+    final parts = currentLocation.split(",");
+    final initialCity = parts.isNotEmpty ? parts[0].trim() : "Mangalore";
+    final initialState = parts.length > 1 ? parts[1].trim() : "Karnataka";
 
-    final popularCities = [
-      "Mumbai",
+    final cityController = TextEditingController(text: initialCity);
+    String selectedState = initialState;
+
+    final stateOptions = [
+      "Karnataka",
+      "Maharashtra",
+      "Tamil Nadu",
+      "Telangana",
+      "Kerala",
+      "Goa",
       "Delhi",
-      "Bangalore",
-      "Hyderabad",
-      "Chennai",
-      "Kolkata",
-      "Pune",
-      "New York",
+      "Gujarat",
+      "West Bengal",
+      "Andhra Pradesh",
+      "Rajasthan",
+      "Uttar Pradesh",
+      "Punjab",
+      "Haryana",
+      "Madhya Pradesh",
+      "Bihar",
+      "Odisha",
+      "Assam",
+      "Other",
+    ];
+
+    if (!stateOptions.contains(selectedState)) {
+      stateOptions.insert(0, selectedState);
+    }
+
+    final popularCityStates = [
+      {"city": "Mangalore", "state": "Karnataka"},
+      {"city": "Udupi", "state": "Karnataka"},
+      {"city": "Manipal", "state": "Karnataka"},
+      {"city": "Bengaluru", "state": "Karnataka"},
+      {"city": "Mysuru", "state": "Karnataka"},
+      {"city": "Mumbai", "state": "Maharashtra"},
+      {"city": "Pune", "state": "Maharashtra"},
+      {"city": "Hyderabad", "state": "Telangana"},
+      {"city": "Chennai", "state": "Tamil Nadu"},
+      {"city": "Kochi", "state": "Kerala"},
+      {"city": "Panaji", "state": "Goa"},
+      {"city": "Delhi", "state": "Delhi"},
     ];
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.xl,
-            right: AppSpacing.xl,
-            top: AppSpacing.xl,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.location_on, color: AppColors.brand, size: 22),
-                      SizedBox(width: 8),
-                      Text(
-                        "Select Your Location",
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.onSurface),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: AppSpacing.xl,
+                right: AppSpacing.xl,
+                top: AppSpacing.xl,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
               ),
-              const SizedBox(height: AppSpacing.md),
-              const Text(
-                "Enter your city, area, or locality manually:",
-                style: TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  hintText: "e.g. Bandra West, Mumbai or Connaught Place",
-                  prefixIcon: const Icon(Icons.search, color: AppColors.muted),
-                  filled: true,
-                  fillColor: AppColors.surfaceSecondary,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              const Text(
-                "POPULAR CITIES",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted, letterSpacing: 0.5),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: popularCities.map((city) {
-                  final isSelected = currentLocation.toLowerCase() == city.toLowerCase();
-                  return ChoiceChip(
-                    label: Text(city),
-                    selected: isSelected,
-                    selectedColor: AppColors.brand,
-                    backgroundColor: AppColors.surfaceSecondary,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : AppColors.onSurface,
-                      fontWeight: FontWeight.w600,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.location_on, color: Color(0xFFE11D48), size: 22),
+                            SizedBox(width: 8),
+                            Text(
+                              "Change Location (City & State)",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onSurface),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
                     ),
-                    onSelected: (_) {
-                      ref.read(patientLocationProvider.notifier).state = city;
-                      setState(() {});
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brand,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                  onPressed: () {
-                    final text = controller.text.trim();
-                    if (text.isNotEmpty) {
-                      ref.read(patientLocationProvider.notifier).state = text;
-                      setState(() {});
-                    }
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text("Set Location", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                    const Divider(color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 8),
+
+                    const Text(
+                      "City / Locality *",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: cityController,
+                      decoration: InputDecoration(
+                        hintText: "e.g. Mangalore, Udupi, Indiranagar",
+                        prefixIcon: const Icon(Icons.location_city, color: Color(0xFF64748B), size: 20),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    const Text(
+                      "State / Province *",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedState,
+                          isExpanded: true,
+                          items: stateOptions.map((st) {
+                            return DropdownMenuItem(value: st, child: Text(st, style: const TextStyle(fontSize: 14)));
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() => selectedState = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    const Text(
+                      "POPULAR CITY & STATES",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: popularCityStates.map((item) {
+                        final formatted = "${item['city']}, ${item['state']}";
+                        final isSelected = currentLocation.toLowerCase() == formatted.toLowerCase();
+
+                        return ChoiceChip(
+                          label: Text(formatted),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF0F766E),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.white : const Color(0xFF334155),
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 12,
+                          ),
+                          onSelected: (_) {
+                            ref.read(patientLocationProvider.notifier).setLocation(formatted);
+                            setState(() {});
+                            Navigator.pop(ctx);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 24),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F766E),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () {
+                          final city = cityController.text.trim();
+                          if (city.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please enter a city name.")),
+                            );
+                            return;
+                          }
+
+                          final formattedLocation = "$city, $selectedState";
+                          ref.read(patientLocationProvider.notifier).setLocation(formattedLocation);
+                          setState(() {});
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text("Save Location", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
