@@ -20,6 +20,13 @@ class Doctor {
   final int? experienceYears;
   final String? languagesSpoken;
 
+  // Clinic & Practice Profile Details
+  final String? googleMapsLocation;
+  final String? clinicPhone;
+  final int? consultationFee;
+  final String? availableDays;
+  final String? workingHours;
+
   Doctor({
     required this.id,
     required this.name,
@@ -39,6 +46,11 @@ class Doctor {
     this.registrationCouncil,
     this.experienceYears,
     this.languagesSpoken,
+    this.googleMapsLocation,
+    this.clinicPhone,
+    this.consultationFee,
+    this.availableDays,
+    this.workingHours,
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
@@ -71,6 +83,13 @@ class Doctor {
           ? json['years_of_experience']
           : int.tryParse(json['years_of_experience']?.toString() ?? json['experience_years']?.toString() ?? ''),
       languagesSpoken: json['languages_spoken']?.toString() ?? json['languages']?.toString(),
+      googleMapsLocation: json['google_maps_location']?.toString() ?? json['location_link']?.toString() ?? json['google_maps_url']?.toString(),
+      clinicPhone: json['clinic_phone']?.toString() ?? json['clinic_phone_number']?.toString(),
+      consultationFee: json['consultation_fee'] is int
+          ? json['consultation_fee']
+          : int.tryParse(json['consultation_fee']?.toString() ?? '800'),
+      availableDays: json['available_days']?.toString(),
+      workingHours: json['working_hours']?.toString(),
     );
   }
 
@@ -95,6 +114,11 @@ class Doctor {
       'registration_council': registrationCouncil,
       'years_of_experience': experienceYears,
       'languages_spoken': languagesSpoken,
+      'google_maps_location': googleMapsLocation,
+      'clinic_phone': clinicPhone,
+      'consultation_fee': consultationFee,
+      'available_days': availableDays,
+      'working_hours': workingHours,
     };
   }
 }

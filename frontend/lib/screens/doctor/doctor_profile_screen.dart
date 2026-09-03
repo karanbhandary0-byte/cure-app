@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,6 +57,349 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
     ),
   ];
 
+  void _showEditClinicModal(Doctor doctor) {
+    final nameController = TextEditingController(text: doctor.clinicName);
+    final addressController = TextEditingController(
+      text: doctor.clinicAddress ?? "Suite 402, 750 Health Plaza, 5th Cross, Indiranagar, Bengaluru, 560038",
+    );
+    final mapsController = TextEditingController(
+      text: doctor.googleMapsLocation ?? "https://maps.google.com/?q=12.9716,77.5946 (Indiranagar, Bengaluru)",
+    );
+    final phoneController = TextEditingController(
+      text: doctor.clinicPhone ?? "+91 80 4123 4567",
+    );
+    final feeController = TextEditingController(
+      text: "${doctor.consultationFee ?? 800}",
+    );
+    final durationController = TextEditingController(
+      text: "${doctor.slotDurationMin ?? 20}",
+    );
+    final daysController = TextEditingController(
+      text: doctor.availableDays ?? "Monday, Tuesday, Wednesday, Thursday, Friday, Saturday",
+    );
+    final hoursController = TextEditingController(
+      text: doctor.workingHours ?? "09:00 AM - 01:00 PM, 04:30 PM - 08:30 PM",
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.xl,
+            right: AppSpacing.xl,
+            top: AppSpacing.xl,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.local_hospital_outlined, color: Color(0xFF0F766E), size: 22),
+                        SizedBox(width: 8),
+                        Text(
+                          "Edit Clinic Details",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20, color: AppColors.border),
+
+                // 1. Clinic Name
+                _buildModalField("1. Clinic Name *", "e.g. Cure Family Medical Center", nameController),
+
+                // 2. Complete Clinic Address
+                _buildModalField("2. Complete Clinic Address *", "Street, Area, Landmark, City & PIN code", addressController, maxLines: 2),
+
+                // 3. Google Maps / Location
+                _buildModalField("3. Google Maps / Location Link *", "e.g. https://maps.google.com/?q=... or Landmark", mapsController),
+
+                // 4. Clinic Phone Number
+                _buildModalField("4. Clinic Phone Number *", "e.g. +91 80 4123 4567", phoneController, keyboardType: TextInputType.phone),
+
+                // 5. Consultation Fee & 6. Duration Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildModalField("5. Consultation Fee (₹) *", "e.g. 800", feeController, keyboardType: TextInputType.number),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _buildModalField("6. Duration (Mins) *", "e.g. 20", durationController, keyboardType: TextInputType.number),
+                    ),
+                  ],
+                ),
+
+                // 7. Available Days
+                _buildModalField("7. Available Days *", "e.g. Monday to Saturday", daysController),
+
+                // 8. Working Hours
+                _buildModalField("8. Working Hours *", "e.g. 09:00 AM - 01:00 PM, 04:30 PM - 08:30 PM", hoursController),
+
+                const SizedBox(height: AppSpacing.xl),
+
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F766E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () async {
+                      final updatedDoctor = Doctor(
+                        id: doctor.id,
+                        name: doctor.name,
+                        specialty: doctor.specialty,
+                        clinicName: nameController.text.trim().isNotEmpty ? nameController.text.trim() : doctor.clinicName,
+                        clinicAddress: addressController.text.trim(),
+                        status: doctor.status,
+                        verificationStatus: doctor.verificationStatus,
+                        delayMinutes: doctor.delayMinutes,
+                        slotDurationMin: int.tryParse(durationController.text.trim()) ?? doctor.slotDurationMin,
+                        slotCount: doctor.slotCount,
+                        slotStartHour: doctor.slotStartHour,
+                        profilePhoto: doctor.profilePhoto,
+                        medicalDegree: doctor.medicalDegree,
+                        subSpecialization: doctor.subSpecialization,
+                        registrationNumber: doctor.registrationNumber,
+                        registrationCouncil: doctor.registrationCouncil,
+                        experienceYears: doctor.experienceYears,
+                        languagesSpoken: doctor.languagesSpoken,
+                        googleMapsLocation: mapsController.text.trim(),
+                        clinicPhone: phoneController.text.trim(),
+                        consultationFee: int.tryParse(feeController.text.trim()) ?? doctor.consultationFee,
+                        availableDays: daysController.text.trim(),
+                        workingHours: hoursController.text.trim(),
+                      );
+
+                      try {
+                        final fb = ref.read(firebaseServiceProvider);
+                        await fb.updateDoctorClinicProfile(
+                          doctor.id,
+                          clinicName: updatedDoctor.clinicName,
+                          clinicAddress: updatedDoctor.clinicAddress ?? '',
+                          googleMapsLocation: updatedDoctor.googleMapsLocation,
+                          clinicPhone: updatedDoctor.clinicPhone,
+                          consultationFee: updatedDoctor.consultationFee,
+                          consultationDuration: updatedDoctor.slotDurationMin,
+                          availableDays: updatedDoctor.availableDays,
+                          workingHours: updatedDoctor.workingHours,
+                        );
+                      } catch (_) {}
+
+                      // Update local session
+                      final session = ref.read(sessionServiceProvider);
+                      await session.saveSession(token: "fb_${doctor.id}", role: "doctor", user: updatedDoctor.toJson());
+
+                      // Refresh Auth State
+                      ref.read(authProvider.notifier).checkInitialAuth();
+
+                      if (mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Clinic details updated successfully.")),
+                        );
+                      }
+                    },
+                    child: const Text("Save Clinic Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModalField(String label, String hint, TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF334155))),
+          const SizedBox(height: 4),
+          TextField(
+            controller: controller,
+            maxLines: maxLines,
+            keyboardType: keyboardType,
+            style: const TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openAddStaffModal() {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final roleCtrl = TextEditingController(text: "Triage & Patient Intake");
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.xl,
+            right: AppSpacing.xl,
+            top: AppSpacing.xl,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Authorize Clinical Staff",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text("Staff Full Name", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.muted)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  hintText: "e.g. Nurse Rahul Sharma",
+                  filled: true,
+                  fillColor: AppColors.surfaceSecondary,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text("Staff Mobile Phone Number", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.muted)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: "e.g. +91 98765 43210",
+                  filled: true,
+                  fillColor: AppColors.surfaceSecondary,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Text("Clinical Designation / Role", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.muted)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: roleCtrl,
+                decoration: InputDecoration(
+                  hintText: "e.g. Clinic Receptionist / Triage Nurse",
+                  filled: true,
+                  fillColor: AppColors.surfaceSecondary,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                  ),
+                  onPressed: () {
+                    final name = nameCtrl.text.trim();
+                    final phone = phoneCtrl.text.trim();
+                    final designation = roleCtrl.text.trim();
+
+                    if (name.isEmpty || phone.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Please fill in staff name and phone number.")),
+                      );
+                      return;
+                    }
+
+                    final newCode = (100000 + Random().nextInt(900000)).toString();
+
+                    setState(() {
+                      _staffList.insert(
+                        0,
+                        AuthorizedStaffMember(
+                          id: 'staff_${DateTime.now().millisecondsSinceEpoch}',
+                          name: name,
+                          phone: phone,
+                          designation: designation.isNotEmpty ? designation : "Clinical Staff",
+                          verificationCode: newCode,
+                          isVerified: false,
+                          addedAt: DateTime.now(),
+                        ),
+                      );
+                    });
+
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Staff '$name' authorized with code $newCode"),
+                        backgroundColor: const Color(0xFF0F766E),
+                      ),
+                    );
+                  },
+                  child: const Text("Generate Staff Verification Code", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -70,11 +414,16 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
     final docExperience = doctor?.experienceYears ?? 8;
     final docLanguages = doctor?.languagesSpoken ?? "English, Hindi, Kannada";
     final docPhoto = doctor?.profilePhoto;
+
+    // Clinic Details
     final clinicName = doctor?.clinicName ?? "Cure Medical Center";
-    final clinicAddress = doctor?.clinicAddress ?? "Suite 402, 750 Health Plaza, Medical District";
-    final slotDuration = doctor?.slotDurationMin ?? 30;
-    final slotCount = doctor?.slotCount ?? 8;
-    final slotStartHour = doctor?.slotStartHour ?? 9;
+    final clinicAddress = doctor?.clinicAddress ?? "Suite 402, 750 Health Plaza, 5th Cross, Indiranagar, Bengaluru, 560038";
+    final googleMapsLocation = doctor?.googleMapsLocation ?? "https://maps.google.com/?q=12.9716,77.5946 (Indiranagar, Bengaluru)";
+    final clinicPhone = doctor?.clinicPhone ?? "+91 80 4123 4567";
+    final consultationFee = doctor?.consultationFee ?? 800;
+    final slotDuration = doctor?.slotDurationMin ?? 20;
+    final availableDays = doctor?.availableDays ?? "Monday, Tuesday, Wednesday, Thursday, Friday, Saturday";
+    final workingHours = doctor?.workingHours ?? "09:00 AM - 01:00 PM, 04:30 PM - 08:30 PM";
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -105,7 +454,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Doctor Profile Card
+            // 1. Doctor Professional Profile Card
             Container(
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
@@ -219,16 +568,111 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                   _buildProfileRow(Icons.work_history_outlined, "Experience", "$docExperience years in clinical practice"),
                   const SizedBox(height: 8),
                   _buildProfileRow(Icons.translate_outlined, "Languages", docLanguages),
-                  const SizedBox(height: 8),
-                  _buildProfileRow(Icons.business_outlined, "Clinic Practice", clinicName),
-                  const SizedBox(height: 8),
-                  _buildProfileRow(Icons.location_on_outlined, "Location", clinicAddress),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Clinical Staff Management Header
+            // 2. Clinic Details Section Header & Edit Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      "Clinic Information",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Practice location, working hours & consultation fee",
+                      style: TextStyle(fontSize: 12, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  key: const Key("edit-clinic-btn"),
+                  onPressed: () {
+                    if (doctor != null) {
+                      _showEditClinicModal(doctor);
+                    } else {
+                      final demoDoc = Doctor(
+                        id: 'doc_demo',
+                        name: docName,
+                        specialty: docSpecialty,
+                        clinicName: clinicName,
+                        clinicAddress: clinicAddress,
+                        googleMapsLocation: googleMapsLocation,
+                        clinicPhone: clinicPhone,
+                        consultationFee: consultationFee,
+                        slotDurationMin: slotDuration,
+                        availableDays: availableDays,
+                        workingHours: workingHours,
+                      );
+                      _showEditClinicModal(demoDoc);
+                    }
+                  },
+                  icon: const Icon(Icons.edit, size: 15),
+                  label: const Text(
+                    "Edit Clinic",
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Clinic Information Detailed Card
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.border),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x06000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildProfileRow(Icons.business_outlined, "Clinic Name", clinicName),
+                  const SizedBox(height: 10),
+                  _buildProfileRow(Icons.location_on_outlined, "Complete Clinic Address", clinicAddress),
+                  const SizedBox(height: 10),
+                  _buildProfileRow(Icons.map_outlined, "Google Maps / Location", googleMapsLocation),
+                  const SizedBox(height: 10),
+                  _buildProfileRow(Icons.phone_outlined, "Clinic Phone Number", clinicPhone),
+                  const SizedBox(height: 10),
+                  _buildProfileRow(Icons.currency_rupee, "Consultation Fee", "₹$consultationFee per consultation"),
+                  const SizedBox(height: 10),
+                  _buildProfileRow(Icons.timer_outlined, "Consultation Duration", "$slotDuration minutes per slot"),
+                  const SizedBox(height: 10),
+                  _buildProfileRow(Icons.calendar_today_outlined, "Available Days", availableDays),
+                  const SizedBox(height: 10),
+                  _buildProfileRow(Icons.access_time_outlined, "Working Hours", workingHours),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+
+            // 3. Clinical Staff Management Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -324,20 +768,20 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: AppColors.muted),
+        Icon(icon, size: 16, color: const Color(0xFF0F766E)),
         const SizedBox(width: 8),
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 12, color: AppColors.onSurface),
+              style: const TextStyle(fontSize: 13, color: AppColors.onSurface),
               children: [
                 TextSpan(
                   text: "$label: ",
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.muted),
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                 ),
                 TextSpan(
                   text: value,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
                 ),
               ],
             ),
@@ -454,8 +898,8 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 1.0,
                               color: Color(0xFF0F766E),
+                              letterSpacing: 1,
                             ),
                           ),
                         ],
@@ -466,280 +910,8 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: AppSpacing.xs),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (!staff.isVerified) ...[
-                TextButton.icon(
-                  onPressed: () => _openVerifyStaffDialog(staff),
-                  icon: const Icon(Icons.check, size: 16, color: Color(0xFF15803D)),
-                  label: const Text(
-                    "Enter Code to Verify",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF15803D)),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                TextButton.icon(
-                  onPressed: () => _resendCode(staff),
-                  icon: const Icon(Icons.send_outlined, size: 14, color: AppColors.brand),
-                  label: const Text(
-                    "Resend SMS",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand),
-                  ),
-                ),
-              ],
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _staffList.removeWhere((s) => s.id == staff.id);
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Staff member ${staff.name} access revoked.")),
-                  );
-                },
-                icon: const Icon(Icons.delete_outline, size: 15, color: AppColors.error),
-                label: const Text(
-                  "Remove",
-                  style: TextStyle(fontSize: 12, color: AppColors.error),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
-    );
-  }
-
-  void _resendCode(AuthorizedStaffMember staff) {
-    final newCode = (100000 + Random().nextInt(900000)).toString();
-    setState(() {
-      staff.verificationCode = newCode;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("📲 Verification code $newCode sent via SMS to ${staff.phone}"),
-        backgroundColor: const Color(0xFF0F766E),
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
-
-  void _openVerifyStaffDialog(AuthorizedStaffMember staff) {
-    final codeController = TextEditingController(text: staff.verificationCode);
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-          title: Text("Verify ${staff.name}"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Enter the 6-digit code sent to ${staff.phone}:",
-                style: const TextStyle(fontSize: 13, color: AppColors.muted),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: codeController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                decoration: InputDecoration(
-                  hintText: "6-digit code",
-                  filled: true,
-                  fillColor: AppColors.surfaceSecondary,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (codeController.text.trim() == staff.verificationCode) {
-                  setState(() {
-                    staff.isVerified = true;
-                  });
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("🎉 ${staff.name} is now VERIFIED & authorized for clinical portal!"),
-                      backgroundColor: const Color(0xFF15803D),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("❌ Invalid verification code. Please check and try again."),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text("Confirm Verification"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _openAddStaffModal() {
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController(text: "+1 (555) ");
-    final designationCtrl = TextEditingController(text: "Triage & Clinical Nurse");
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.xl,
-            right: AppSpacing.xl,
-            top: AppSpacing.xl,
-            bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Add Clinical Staff Member",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                "Enter her name and phone number to dispatch an activation verification code.",
-                style: TextStyle(fontSize: 12, color: AppColors.muted),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const Divider(color: AppColors.border),
-              const SizedBox(height: AppSpacing.sm),
-
-              _buildInputField("Staff Full Name *", nameCtrl, "e.g. Nurse Sarah Mitchell"),
-              const SizedBox(height: AppSpacing.sm),
-              _buildInputField("Mobile Number (SMS verification) *", phoneCtrl, "+1 (555) 000-0000"),
-              const SizedBox(height: AppSpacing.sm),
-              _buildInputField("Designation / Role", designationCtrl, "e.g. Triage Nurse / Intake Specialist"),
-              const SizedBox(height: AppSpacing.lg),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  key: const Key("submit-add-staff-btn"),
-                  onPressed: () {
-                    if (nameCtrl.text.trim().isEmpty || phoneCtrl.text.trim().isEmpty) return;
-
-                    final generatedCode = (100000 + Random().nextInt(900000)).toString();
-                    final newStaff = AuthorizedStaffMember(
-                      id: 'staff_${DateTime.now().millisecondsSinceEpoch}',
-                      name: nameCtrl.text.trim(),
-                      phone: phoneCtrl.text.trim(),
-                      designation: designationCtrl.text.trim().isEmpty
-                          ? "Triage & Clinical Nurse"
-                          : designationCtrl.text.trim(),
-                      verificationCode: generatedCode,
-                      isVerified: false,
-                      addedAt: DateTime.now(),
-                    );
-
-                    setState(() {
-                      _staffList.add(newStaff);
-                    });
-
-                    Navigator.pop(ctx);
-
-                    // Show visual SMS sent banner
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("📲 Verification code $generatedCode sent to ${newStaff.phone}!"),
-                        backgroundColor: const Color(0xFF0F766E),
-                        duration: const Duration(seconds: 5),
-                        action: SnackBarAction(
-                          label: "VERIFY NOW",
-                          textColor: Colors.white,
-                          onPressed: () => _openVerifyStaffDialog(newStaff),
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.send, size: 18),
-                  label: const Text(
-                    "Send Verification Code & Add Staff",
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInputField(String label, TextEditingController controller, String hint) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-        ),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: AppColors.surfaceSecondary,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          ),
-        ),
-      ],
     );
   }
 }

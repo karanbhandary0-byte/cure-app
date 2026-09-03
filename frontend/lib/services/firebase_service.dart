@@ -281,6 +281,31 @@ class FirebaseService {
     });
   }
 
+  /// Update Complete Doctor Clinic Profile
+  Future<void> updateDoctorClinicProfile(
+    String doctorId, {
+    required String clinicName,
+    required String clinicAddress,
+    String? googleMapsLocation,
+    String? clinicPhone,
+    int? consultationFee,
+    int? consultationDuration,
+    String? availableDays,
+    String? workingHours,
+  }) async {
+    await _db.collection('doctors').doc(doctorId).update({
+      'clinic_name': clinicName,
+      'clinic_address': clinicAddress,
+      'google_maps_location': googleMapsLocation ?? '',
+      'clinic_phone': clinicPhone ?? '',
+      'consultation_fee': consultationFee ?? 800,
+      'slot_duration_min': consultationDuration ?? 30,
+      'available_days': availableDays ?? '',
+      'working_hours': workingHours ?? '',
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Update Doctor Settings
   Future<void> updateDoctorSettings(String doctorId, int duration, int count, int startHour) async {
     await _db.collection('doctors').doc(doctorId).update({
