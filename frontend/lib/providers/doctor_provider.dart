@@ -328,6 +328,7 @@ final patientDetailProvider =
         consultations: consults,
         feedbacks: fbs,
       );
+    }
   } catch (_) {}
 
   // 3. Check Booked Schedule / Walk-in Patients State
