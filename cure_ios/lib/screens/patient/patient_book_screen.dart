@@ -116,14 +116,76 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
             id: 'doc_demo_1',
             name: 'Dr. Sarah Smith',
             specialty: 'Cardiology',
-            clinicName: 'Cure Medical Center',
-            clinicAddress: 'Bandra West, Mumbai',
+            clinicName: 'Cure Heart & Health Care',
+            clinicAddress: 'KS Rao Road, Mangalore, Karnataka',
+            clinicPhone: '+91 824 244 5678',
+            consultationFee: 700,
             status: 'available',
             verificationStatus: 'verified',
             delayMinutes: 0,
-            slotDurationMin: 30,
+            slotDurationMin: 20,
             slotCount: 8,
             slotStartHour: 9,
+          ),
+          Doctor(
+            id: 'doc_demo_2',
+            name: 'Dr. Arvind Rao',
+            specialty: 'General Physician',
+            clinicName: 'Mangalore Family Clinic',
+            clinicAddress: 'Lighthouse Hill Road, Mangalore, Karnataka',
+            clinicPhone: '+91 824 222 1100',
+            consultationFee: 500,
+            status: 'available',
+            verificationStatus: 'verified',
+            delayMinutes: 0,
+            slotDurationMin: 15,
+            slotCount: 12,
+            slotStartHour: 8,
+          ),
+          Doctor(
+            id: 'doc_demo_3',
+            name: 'Dr. Meera Shenoy',
+            specialty: 'Pediatrics',
+            clinicName: 'Children Hospital & Care',
+            clinicAddress: 'Attavar, Mangalore, Karnataka',
+            clinicPhone: '+91 824 244 9900',
+            consultationFee: 650,
+            status: 'available',
+            verificationStatus: 'verified',
+            delayMinutes: 0,
+            slotDurationMin: 20,
+            slotCount: 10,
+            slotStartHour: 9,
+          ),
+          Doctor(
+            id: 'doc_demo_4',
+            name: 'Dr. Rajesh Hegde',
+            specialty: 'Orthopedics',
+            clinicName: 'Apex Specialty Center',
+            clinicAddress: 'Indiranagar, Bengaluru, Karnataka',
+            clinicPhone: '+91 80 4123 4567',
+            consultationFee: 900,
+            status: 'available',
+            verificationStatus: 'verified',
+            delayMinutes: 0,
+            slotDurationMin: 25,
+            slotCount: 8,
+            slotStartHour: 10,
+          ),
+          Doctor(
+            id: 'doc_demo_5',
+            name: 'Dr. Priya Desai',
+            specialty: 'Dermatology',
+            clinicName: 'Skin & Glow Clinic',
+            clinicAddress: 'Bandra West, Mumbai, Maharashtra',
+            clinicPhone: '+91 22 2640 1234',
+            consultationFee: 850,
+            status: 'available',
+            verificationStatus: 'verified',
+            delayMinutes: 0,
+            slotDurationMin: 20,
+            slotCount: 8,
+            slotStartHour: 10,
           ),
         ];
         isLoading = false;
@@ -294,15 +356,21 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
       return nameMatch || specMatch || clinicMatch || diseaseMatch;
     }).toList();
 
-    // Sort: Nearby doctors in current location appear first
+    // Sort: Nearby doctors in current location (City, State) appear first
     filteredDoctors.sort((a, b) {
-      final aNearby = (a.clinicAddress != null && a.clinicAddress!.toLowerCase().contains(location.toLowerCase())) ||
-          a.clinicName.toLowerCase().contains(location.toLowerCase());
-      final bNearby = (b.clinicAddress != null && b.clinicAddress!.toLowerCase().contains(location.toLowerCase())) ||
-          b.clinicName.toLowerCase().contains(location.toLowerCase());
+      final locTerms = location.toLowerCase().split(RegExp(r'[, ]+')).where((s) => s.isNotEmpty).toList();
+      int aScore = 0;
+      int bScore = 0;
 
-      if (aNearby && !bNearby) return -1;
-      if (!aNearby && bNearby) return 1;
+      final aText = "${a.clinicName} ${a.clinicAddress ?? ''}".toLowerCase();
+      final bText = "${b.clinicName} ${b.clinicAddress ?? ''}".toLowerCase();
+
+      for (final term in locTerms) {
+        if (aText.contains(term)) aScore += 2;
+        if (bText.contains(term)) bScore += 2;
+      }
+
+      if (aScore != bScore) return bScore.compareTo(aScore);
       return 0;
     });
 
