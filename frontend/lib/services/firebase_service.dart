@@ -318,6 +318,14 @@ class FirebaseService {
     });
   }
 
+  /// Update Doctor Profile Photo
+  Future<void> updateDoctorProfilePhoto(String doctorId, String profilePhoto) async {
+    await _db.collection('doctors').doc(doctorId).update({
+      'profile_photo': profilePhoto,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Verify or update doctor verification status in Cloud Firestore
   Future<void> verifyDoctor(String doctorId, String status) async {
     await _db.collection('doctors').doc(doctorId).update({

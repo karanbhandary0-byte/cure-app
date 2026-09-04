@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
@@ -36,6 +37,89 @@ class DoctorProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickAndUploadDoctorPhoto(Doctor doctor) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Update Profile Photo",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Color(0xFF0F766E)),
+                  title: const Text("Choose from Gallery"),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 600, maxHeight: 600);
+                      if (picked != null) {
+                        final bytes = await picked.readAsBytes();
+                        final base64Photo = "data:image/jpeg;base64,${base64Encode(bytes)}";
+                        await ref.read(authProvider.notifier).updateDoctorPhoto(base64Photo);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Profile photo updated successfully!")),
+                          );
+                        }
+                      }
+                    } catch (_) {}
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt, color: Color(0xFF0F766E)),
+                  title: const Text("Take a Photo with Camera"),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      final picked = await _picker.pickImage(source: ImageSource.camera, maxWidth: 600, maxHeight: 600);
+                      if (picked != null) {
+                        final bytes = await picked.readAsBytes();
+                        final base64Photo = "data:image/jpeg;base64,${base64Encode(bytes)}";
+                        await ref.read(authProvider.notifier).updateDoctorPhoto(base64Photo);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Profile photo updated successfully!")),
+                          );
+                        }
+                      }
+                    } catch (_) {}
+                  },
+                ),
+                if (doctor.profilePhoto != null && doctor.profilePhoto!.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline, color: Colors.red),
+                    title: const Text("Remove Photo", style: TextStyle(color: Colors.red)),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await ref.read(authProvider.notifier).updateDoctorPhoto("");
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Profile photo removed.")),
+                        );
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
   final List<AuthorizedStaffMember> _staffList = [
     AuthorizedStaffMember(
       id: 'staff_sarah_01',
@@ -532,35 +616,61 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F766E).withOpacity(0.12),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF0F766E), width: 1.5),
-                        ),
-                        child: docPhoto != null && docPhoto.isNotEmpty
-                            ? ClipOval(
-                                child: docPhoto.startsWith("data:image")
-                                    ? Image.memory(
-                                        base64Decode(docPhoto.split(",").last),
-                                        width: 64,
-                                        height: 64,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Image.network(docPhoto, fit: BoxFit.cover),
-                              )
-                            : Center(
-                                child: Text(
-                                  docName.isNotEmpty ? docName[0].toUpperCase() : "D",
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F766E),
-                                  ),
+                      InkWell(
+                        onTap: doctor != null ? () => _pickAndUploadDoctorPhoto(doctor) : null,
+                        borderRadius: BorderRadius.circular(32),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F766E).withOpacity(0.12),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF0F766E), width: 1.5),
+                              ),
+                              child: docPhoto != null && docPhoto.isNotEmpty
+                                  ? ClipOval(
+                                      child: docPhoto.startsWith("data:image")
+                                          ? Image.memory(
+                                              base64Decode(docPhoto.split(",").last),
+                                              width: 64,
+                                              height: 64,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.network(docPhoto, fit: BoxFit.cover),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        docName.isNotEmpty ? docName[0].toUpperCase() : "D",
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0F766E),
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                            Positioned(
+                              bottom: -2,
+                              right: -2,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F766E),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.white,
+                                  size: 12,
                                 ),
                               ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(

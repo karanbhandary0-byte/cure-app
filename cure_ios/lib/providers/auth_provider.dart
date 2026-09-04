@@ -244,6 +244,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? languagesSpoken,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
+    await _session.clearSession();
 
     // Try Firebase Authentication first
     try {
@@ -429,6 +430,49 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
         return false;
       }
+    }
+  }
+
+  Future<void> updateDoctorPhoto(String newPhoto) async {
+    if (state.currentUser is Doctor) {
+      final currentDoctor = state.currentUser as Doctor;
+      final updatedDoctor = Doctor(
+        id: currentDoctor.id,
+        name: currentDoctor.name,
+        specialty: currentDoctor.specialty,
+        clinicName: currentDoctor.clinicName,
+        clinicAddress: currentDoctor.clinicAddress,
+        status: currentDoctor.status,
+        verificationStatus: currentDoctor.verificationStatus,
+        delayMinutes: currentDoctor.delayMinutes,
+        slotDurationMin: currentDoctor.slotDurationMin,
+        slotCount: currentDoctor.slotCount,
+        slotStartHour: currentDoctor.slotStartHour,
+        profilePhoto: newPhoto,
+        medicalDegree: currentDoctor.medicalDegree,
+        subSpecialization: currentDoctor.subSpecialization,
+        registrationNumber: currentDoctor.registrationNumber,
+        registrationCouncil: currentDoctor.registrationCouncil,
+        experienceYears: currentDoctor.experienceYears,
+        languagesSpoken: currentDoctor.languagesSpoken,
+        googleMapsLocation: currentDoctor.googleMapsLocation,
+        clinicPhone: currentDoctor.clinicPhone,
+        consultationFee: currentDoctor.consultationFee,
+        availableDays: currentDoctor.availableDays,
+        workingHours: currentDoctor.workingHours,
+      );
+
+      try {
+        await _firebase.updateDoctorProfilePhoto(currentDoctor.id, newPhoto);
+      } catch (_) {}
+
+      await _session.saveSession(
+        token: state.token ?? "fb_${currentDoctor.id}",
+        role: "doctor",
+        user: updatedDoctor.toJson(),
+      );
+
+      state = state.copyWith(currentUser: updatedDoctor);
     }
   }
 
