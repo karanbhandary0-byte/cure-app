@@ -55,6 +55,7 @@ class DoctorDashboardNotifier extends StateNotifier<DoctorDashboardState> {
   StreamSubscription? _apptsSub;
   StreamSubscription? _fbsSub;
   StreamSubscription? _slotsSub;
+  StreamSubscription? _schedSub;
 
   DoctorDashboardNotifier(this._api, this._firebase, this._ref) : super(DoctorDashboardState());
 
@@ -64,6 +65,7 @@ class DoctorDashboardNotifier extends StateNotifier<DoctorDashboardState> {
     _apptsSub?.cancel();
     _fbsSub?.cancel();
     _slotsSub?.cancel();
+    _schedSub?.cancel();
     super.dispose();
   }
 
@@ -100,6 +102,13 @@ class DoctorDashboardNotifier extends StateNotifier<DoctorDashboardState> {
       _slotsSub?.cancel();
       _slotsSub = _firebase.streamDoctorSlots(currentDoc.id).listen((slots) {
         state = state.copyWith(customSlots: slots, isLoading: false);
+      });
+
+      _schedSub?.cancel();
+      _schedSub = _firebase.streamDoctorSchedules(currentDoc.id).listen((schedules) {
+        if (schedules.isNotEmpty) {
+          _ref.read(scheduleProvider.notifier).setSchedules(schedules);
+        }
       });
 
       state = state.copyWith(doctor: currentDoc, isLoading: false);

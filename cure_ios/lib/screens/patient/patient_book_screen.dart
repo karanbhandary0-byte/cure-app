@@ -24,6 +24,7 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
   bool isLoading = true;
   Doctor? selectedDoctor;
   StreamSubscription? _doctorsSub;
+  StreamSubscription? _slotsSub;
 
   int dayOffset = 0;
   String chosenSlot = "";
@@ -53,6 +54,7 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
   @override
   void dispose() {
     _doctorsSub?.cancel();
+    _slotsSub?.cancel();
     _searchController.dispose();
     _reasonController.dispose();
     super.dispose();
@@ -198,83 +200,53 @@ class _PatientBookScreenState extends ConsumerState<PatientBookScreen> {
     return "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
   }
 
-  Future<void> _loadSlots(String doctorId, int offset) async {
+  void _loadSlots(String doctorId, int offset) {
+    _slotsSub?.cancel();
     setState(() => slotsLoading = true);
     final targetDate = DateTime.now().add(Duration(days: offset));
+    final fb = ref.read(firebaseServiceProvider);
 
-    try {
-      final fb = ref.read(firebaseServiceProvider);
-      final liveSlots = await fb.fetchDoctorAvailableSlots(
+    _slotsSub = fb.streamDoctorAvailableSlots(
+      doctorId,
+      targetDate,
+      startHour: selectedDoctor?.slotStartHour ?? 9,
+      count: selectedDoctor?.slotCount ?? 8,
+      durationMin: selectedDoctor?.slotDurationMin ?? 30,
+    ).listen((liveSlots) {
+      if (mounted) {
+        setState(() {
+          slots = liveSlots;
+          slotsLoading = false;
+        });
+      }
+    }, onError: (_) async {
+      try {
+        final api = ref.read(apiServiceProvider);
+        final res = await api.get("/patient/doctors/$doctorId/slots?date=${_nextDayISO(offset)}") as Map<String, dynamic>;
+        final rawList = res['slots'] as List;
+        if (mounted) {
+          setState(() {
+            slots = rawList.map((e) => TimeSlot.fromJson(e as Map<String, dynamic>)).toList();
+            slotsLoading = false;
+          });
+          return;
+        }
+      } catch (_) {}
+
+      final fallback = await fb.fetchDoctorAvailableSlots(
         doctorId,
         targetDate,
         startHour: selectedDoctor?.slotStartHour ?? 9,
         count: selectedDoctor?.slotCount ?? 8,
         durationMin: selectedDoctor?.slotDurationMin ?? 30,
       );
-
-      if (liveSlots.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            slots = liveSlots;
-            chosenSlot = "";
-            slotsLoading = false;
-          });
-        }
-        return;
-      }
-    } catch (_) {}
-
-    try {
-      final api = ref.read(apiServiceProvider);
-      final res = await api.get("/patient/doctors/$doctorId/slots?date=${_nextDayISO(offset)}") as Map<String, dynamic>;
-      final rawList = res['slots'] as List;
       if (mounted) {
         setState(() {
-          slots = rawList.map((e) => TimeSlot.fromJson(e as Map<String, dynamic>)).toList();
-          chosenSlot = "";
+          slots = fallback;
           slotsLoading = false;
         });
       }
-      return;
-    } catch (_) {}
-
-    // Fallback generated complete slots matching doctor sessions
-    final baseDate = targetDate;
-    final List<TimeSlot> generatedSlots = [];
-
-    // Morning Session: 6:00 AM - 8:00 AM (4 min slots)
-    for (int i = 0; i < 30; i++) {
-      final slotStart = DateTime(baseDate.year, baseDate.month, baseDate.day, 6, i * 4);
-      final slotEnd = slotStart.add(const Duration(minutes: 4));
-      final startLabel = DateFormat('h:mm a').format(slotStart);
-      final endLabel = DateFormat('h:mm a').format(slotEnd);
-      generatedSlots.add(TimeSlot(
-        time: slotStart.toIso8601String(),
-        label: "$startLabel – $endLabel",
-        available: i != 0 && i != 2, // demo: slot 0 and 2 are booked/checked-in
-      ));
-    }
-
-    // Evening Session: 5:00 PM - 8:00 PM (4 min slots)
-    for (int i = 0; i < 45; i++) {
-      final slotStart = DateTime(baseDate.year, baseDate.month, baseDate.day, 17, i * 4);
-      final slotEnd = slotStart.add(const Duration(minutes: 4));
-      final startLabel = DateFormat('h:mm a').format(slotStart);
-      final endLabel = DateFormat('h:mm a').format(slotEnd);
-      generatedSlots.add(TimeSlot(
-        time: slotStart.toIso8601String(),
-        label: "$startLabel – $endLabel",
-        available: true,
-      ));
-    }
-
-    if (mounted) {
-      setState(() {
-        slots = generatedSlots;
-        chosenSlot = "";
-        slotsLoading = false;
-      });
-    }
+    });
   }
 
   void _book() async {

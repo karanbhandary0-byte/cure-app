@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../models/user.dart';
 import '../models/appointment.dart';
 import '../models/feedback.dart';
 import '../models/slot.dart';
 import '../models/consultation.dart';
 import '../models/analytics.dart';
+import '../providers/schedule_provider.dart';
 
 class FirebaseService {
   FirebaseAuth get _auth => FirebaseAuth.instance;
@@ -526,37 +528,308 @@ class FirebaseService {
     return PatientFeedbackItem.fromJson(data);
   }
 
-  /// Stream Slots for Doctor
-  Stream<List<CustomSlot>> streamDoctorSlots(String doctorId) {
+  /// Stream Schedules for Doctor
+  Stream<List<CustomSlotSchedule>> streamDoctorSchedules(String doctorId) {
     return _db
-        .collection('slots')
-        .where('doctor_id', isEqualTo: doctorId)
+        .collection('doctor_schedules')
         .snapshots()
         .map((snap) {
-      return snap.docs.map((d) {
-        final data = d.data();
+      final list = snap.docs.map((d) {
+        final data = Map<String, dynamic>.from(d.data());
         data['id'] = d.id;
-        return CustomSlot.fromJson(data);
+        return CustomSlotSchedule.fromJson(data);
+      }).where((s) {
+        if (doctorId.isEmpty) return true;
+        return s.doctorId == null || s.doctorId!.isEmpty || s.doctorId == doctorId;
       }).toList();
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
     });
   }
 
-  /// Add Custom Slot
-  Future<CustomSlot> addSlot(String doctorId, DateTime scheduledAt) async {
-    final docRef = _db.collection('slots').doc();
-    final data = {
-      'id': docRef.id,
-      'doctor_id': doctorId,
-      'scheduled_at': scheduledAt.toIso8601String(),
-      'is_booked': false,
-    };
-    await docRef.set(data);
-    return CustomSlot.fromJson(data);
+  /// Save or Update Doctor Schedule and generate slots
+  Future<void> saveDoctorSchedule(String doctorId, CustomSlotSchedule schedule) async {
+    final schedRef = _db.collection('doctor_schedules').doc(schedule.id);
+    final data = schedule.toJson();
+    data['doctor_id'] = doctorId;
+    data['updated_at'] = FieldValue.serverTimestamp();
+    await schedRef.set(data);
+
+    // Also generate / upsert individual slot entries in Firestore
+    for (int i = 0; i < schedule.totalSlots; i++) {
+      final slotStart = DateTime(
+        schedule.date.year,
+        schedule.date.month,
+        schedule.date.day,
+        schedule.fromTime.hour,
+        schedule.fromTime.minute,
+      ).add(Duration(minutes: i * schedule.durationMinutes));
+      final slotEnd = slotStart.add(Duration(minutes: schedule.durationMinutes));
+
+      final startLabel = DateFormat('h:mm a').format(slotStart);
+      final endLabel = DateFormat('h:mm a').format(slotEnd);
+      final slotDocId = "slot_${doctorId}_${DateFormat('yyyyMMdd').format(schedule.date)}_${slotStart.hour}_${slotStart.minute}";
+
+      await _db.collection('slots').doc(slotDocId).set({
+        'id': slotDocId,
+        'doctor_id': doctorId,
+        'schedule_id': schedule.id,
+        'scheduled_at': slotStart.toIso8601String(),
+        'start_time': startLabel,
+        'end_time': endLabel,
+        'duration_min': schedule.durationMinutes,
+        'date': DateFormat('yyyy-MM-dd').format(schedule.date),
+        'is_booked': false,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    // If schedule is today, synchronize doctor working settings
+    if (schedule.isToday) {
+      try {
+        await _db.collection('doctors').doc(doctorId).update({
+          'slot_start_hour': schedule.fromTime.hour,
+          'slot_duration_min': schedule.durationMinutes,
+          'slot_count': schedule.totalSlots,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+    }
   }
 
-  /// Delete Custom Slot
-  Future<void> deleteSlot(String slotId) async {
-    await _db.collection('slots').doc(slotId).delete();
+  /// Delete Doctor Schedule
+  Future<void> deleteDoctorSchedule(String doctorId, String scheduleId, DateTime date) async {
+    await _db.collection('doctor_schedules').doc(scheduleId).delete();
+
+    // Remove unbooked slots for this schedule
+    try {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final snap = await _db.collection('slots').where('doctor_id', isEqualTo: doctorId).where('date', isEqualTo: dateStr).get();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (data['schedule_id'] == scheduleId && data['is_booked'] != true) {
+          await doc.reference.delete();
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Stream Real-Time Available Slots for Doctor on Target Date
+  Stream<List<TimeSlot>> streamDoctorAvailableSlots(
+    String doctorId,
+    DateTime targetDate, {
+    int startHour = 9,
+    int count = 8,
+    int durationMin = 30,
+  }) {
+    late StreamController<List<TimeSlot>> controller;
+    StreamSubscription? apptsSub;
+    StreamSubscription? slotsSub;
+    StreamSubscription? schedulesSub;
+    StreamSubscription? docSub;
+
+    List<QueryDocumentSnapshot> apptDocs = [];
+    List<QueryDocumentSnapshot> slotDocs = [];
+    List<QueryDocumentSnapshot> scheduleDocs = [];
+    Map<String, dynamic>? doctorData;
+
+    void recalculate() {
+      if (controller.isClosed) return;
+      try {
+        final now = DateTime.now();
+        final isToday = targetDate.year == now.year &&
+            targetDate.month == now.month &&
+            targetDate.day == now.day;
+
+        // 1. Collect Booked Appointments on this target day
+        final Set<String> bookedTimes = {};
+        for (final doc in apptDocs) {
+          final data = Map<String, dynamic>.from(doc.data() as Map);
+          final docId = data['doctor_id']?.toString() ?? '';
+          if (doctorId.isNotEmpty && docId.isNotEmpty && docId != doctorId) continue;
+          final status = data['status']?.toString() ?? '';
+          if (status != 'cancelled') {
+            final dtStr = data['scheduled_at']?.toString() ?? '';
+            final dt = DateTime.tryParse(dtStr);
+            if (dt != null &&
+                dt.year == targetDate.year &&
+                dt.month == targetDate.month &&
+                dt.day == targetDate.day) {
+              bookedTimes.add("${dt.hour}:${dt.minute}");
+            }
+          }
+        }
+
+        final List<TimeSlot> result = [];
+        final Set<String> addedKeys = {};
+
+        // 2. First Priority: Check Custom Doctor Schedules for this targetDate
+        final customSchedules = scheduleDocs.where((doc) {
+          final data = Map<String, dynamic>.from(doc.data() as Map);
+          final docId = data['doctor_id']?.toString() ?? '';
+          if (doctorId.isNotEmpty && docId.isNotEmpty && docId != doctorId) return false;
+          final dateStr = data['date']?.toString() ?? '';
+          final dt = DateTime.tryParse(dateStr);
+          if (dt == null) return false;
+          return dt.year == targetDate.year && dt.month == targetDate.month && dt.day == targetDate.day;
+        }).toList();
+
+        if (customSchedules.isNotEmpty) {
+          for (final sDoc in customSchedules) {
+            final data = Map<String, dynamic>.from(sDoc.data() as Map);
+            final fromHour = (data['from_hour'] as num?)?.toInt() ?? 6;
+            final fromMin = (data['from_minute'] as num?)?.toInt() ?? 0;
+            final duration = (data['duration_minutes'] as num?)?.toInt() ?? 4;
+            final total = (data['total_slots'] as num?)?.toInt() ?? 30;
+
+            for (int i = 0; i < total; i++) {
+              final slotTime = DateTime(
+                targetDate.year,
+                targetDate.month,
+                targetDate.day,
+                fromHour,
+                fromMin,
+              ).add(Duration(minutes: i * duration));
+              final endSlotTime = slotTime.add(Duration(minutes: duration));
+
+              final key = "${slotTime.hour}:${slotTime.minute}";
+              if (!addedKeys.contains(key)) {
+                addedKeys.add(key);
+                final isBooked = bookedTimes.contains(key);
+                final isPast = isToday && slotTime.isBefore(now.subtract(const Duration(minutes: 5)));
+
+                final sHour = slotTime.hour > 12 ? (slotTime.hour - 12) : (slotTime.hour == 0 ? 12 : slotTime.hour);
+                final sAmPm = slotTime.hour >= 12 ? 'PM' : 'AM';
+                final sMin = slotTime.minute.toString().padLeft(2, '0');
+
+                final eHour = endSlotTime.hour > 12 ? (endSlotTime.hour - 12) : (endSlotTime.hour == 0 ? 12 : endSlotTime.hour);
+                final eAmPm = endSlotTime.hour >= 12 ? 'PM' : 'AM';
+                final eMin = endSlotTime.minute.toString().padLeft(2, '0');
+
+                result.add(TimeSlot(
+                  time: slotTime.toIso8601String(),
+                  label: "$sHour:$sMin $sAmPm – $eHour:$eMin $eAmPm",
+                  available: !isBooked && !isPast,
+                ));
+              }
+            }
+          }
+        }
+
+        // 3. Second Priority: Individual Custom Slots from `slots` collection
+        for (final sDoc in slotDocs) {
+          final data = Map<String, dynamic>.from(sDoc.data() as Map);
+          final docId = data['doctor_id']?.toString() ?? '';
+          if (doctorId.isNotEmpty && docId.isNotEmpty && docId != doctorId) continue;
+          final dtStr = data['scheduled_at']?.toString() ?? '';
+          final dt = DateTime.tryParse(dtStr);
+          if (dt != null &&
+              dt.year == targetDate.year &&
+              dt.month == targetDate.month &&
+              dt.day == targetDate.day) {
+            final key = "${dt.hour}:${dt.minute}";
+            if (!addedKeys.contains(key)) {
+              addedKeys.add(key);
+              final isBooked = data['is_booked'] == true || bookedTimes.contains(key);
+              final isPast = isToday && dt.isBefore(now.subtract(const Duration(minutes: 5)));
+
+              final hourStr = dt.hour > 12 ? (dt.hour - 12) : (dt.hour == 0 ? 12 : dt.hour);
+              final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+              final minStr = dt.minute.toString().padLeft(2, '0');
+
+              result.add(TimeSlot(
+                time: dt.toIso8601String(),
+                label: data['start_time'] != null && data['end_time'] != null
+                    ? "${data['start_time']} – ${data['end_time']}"
+                    : "$hourStr:$minStr $amPm",
+                available: !isBooked && !isPast,
+              ));
+            }
+          }
+        }
+
+        // 4. Fallback default slots using current doctor settings if no custom schedule is registered
+        if (result.isEmpty) {
+          int sHour = startHour;
+          int sCount = count;
+          int sDur = durationMin;
+          if (doctorData != null) {
+            sHour = (doctorData!['slot_start_hour'] as num?)?.toInt() ?? sHour;
+            sCount = (doctorData!['slot_count'] as num?)?.toInt() ?? sCount;
+            sDur = (doctorData!['slot_duration_min'] as num?)?.toInt() ?? sDur;
+          }
+
+          for (int i = 0; i < sCount; i++) {
+            final slotTime = DateTime(
+              targetDate.year,
+              targetDate.month,
+              targetDate.day,
+              sHour,
+            ).add(Duration(minutes: i * sDur));
+            final endSlotTime = slotTime.add(Duration(minutes: sDur));
+
+            final key = "${slotTime.hour}:${slotTime.minute}";
+            addedKeys.add(key);
+
+            final isBooked = bookedTimes.contains(key);
+            final isPast = isToday && slotTime.isBefore(now.subtract(const Duration(minutes: 5)));
+
+            final hourStr = slotTime.hour > 12 ? (slotTime.hour - 12) : (slotTime.hour == 0 ? 12 : slotTime.hour);
+            final amPm = slotTime.hour >= 12 ? 'PM' : 'AM';
+            final minStr = slotTime.minute.toString().padLeft(2, '0');
+
+            final eHour = endSlotTime.hour > 12 ? (endSlotTime.hour - 12) : (endSlotTime.hour == 0 ? 12 : endSlotTime.hour);
+            final eAmPm = endSlotTime.hour >= 12 ? 'PM' : 'AM';
+            final minStr = endSlotTime.minute.toString().padLeft(2, '0');
+
+            result.add(TimeSlot(
+              time: slotTime.toIso8601String(),
+              label: "$hourStr:$minStr $amPm – $eHour:$eMin $eAmPm",
+              available: !isBooked && !isPast,
+            ));
+          }
+        }
+
+        result.sort((a, b) => (DateTime.tryParse(a.time) ?? now).compareTo(DateTime.tryParse(b.time) ?? now));
+        controller.add(result);
+      } catch (_) {}
+    }
+
+    controller = StreamController<List<TimeSlot>>.broadcast(
+      onListen: () {
+        apptsSub = _db.collection('appointments').snapshots().listen((snap) {
+          apptDocs = snap.docs;
+          recalculate();
+        }, onError: (_) {});
+
+        slotsSub = _db.collection('slots').snapshots().listen((snap) {
+          slotDocs = snap.docs;
+          recalculate();
+        }, onError: (_) {});
+
+        schedulesSub = _db.collection('doctor_schedules').snapshots().listen((snap) {
+          scheduleDocs = snap.docs;
+          recalculate();
+        }, onError: (_) {});
+
+        if (doctorId.isNotEmpty) {
+          docSub = _db.collection('doctors').doc(doctorId).snapshots().listen((snap) {
+            if (snap.exists && snap.data() != null) {
+              doctorData = Map<String, dynamic>.from(snap.data()!);
+              recalculate();
+            }
+          }, onError: (_) {});
+        }
+      },
+      onCancel: () {
+        apptsSub?.cancel();
+        slotsSub?.cancel();
+        schedulesSub?.cancel();
+        docSub?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   /// Fetch Real-Time Slots & Bookings for a given Doctor and Day
@@ -597,38 +870,61 @@ class FirebaseService {
       }
     } catch (_) {}
 
-    // 2. Generate standard slots
     final Set<String> addedKeys = {};
-    for (int i = 0; i < count; i++) {
-      final slotTime = DateTime(
-        targetDate.year,
-        targetDate.month,
-        targetDate.day,
-        startHour,
-      ).add(Duration(minutes: i * durationMin));
 
-      final key = "${slotTime.hour}:${slotTime.minute}";
-      addedKeys.add(key);
+    // 2. Check Custom Doctor Schedules in Firestore
+    try {
+      Query query = _db.collection('doctor_schedules');
+      if (doctorId.isNotEmpty) {
+        query = query.where('doctor_id', isEqualTo: doctorId);
+      }
+      final schedSnap = await query.get();
+      for (final doc in schedSnap.docs) {
+        final data = Map<String, dynamic>.from(doc.data() as Map);
+        final dateStr = data['date']?.toString() ?? '';
+        final dt = DateTime.tryParse(dateStr);
+        if (dt != null && dt.year == targetDate.year && dt.month == targetDate.month && dt.day == targetDate.day) {
+          final fromHour = (data['from_hour'] as num?)?.toInt() ?? 6;
+          final fromMin = (data['from_minute'] as num?)?.toInt() ?? 0;
+          final duration = (data['duration_minutes'] as num?)?.toInt() ?? 4;
+          final total = (data['total_slots'] as num?)?.toInt() ?? 30;
 
-      final isBooked = bookedTimes.contains(key);
-      final isPast = isToday && slotTime.isBefore(now.subtract(const Duration(minutes: 5)));
-      final isAvail = !isBooked && !isPast;
+          for (int i = 0; i < total; i++) {
+            final slotTime = DateTime(
+              targetDate.year,
+              targetDate.month,
+              targetDate.day,
+              fromHour,
+              fromMin,
+            ).add(Duration(minutes: i * duration));
+            final endSlotTime = slotTime.add(Duration(minutes: duration));
 
-      final hourStr = slotTime.hour > 12
-          ? (slotTime.hour - 12)
-          : (slotTime.hour == 0 ? 12 : slotTime.hour);
-      final amPm = slotTime.hour >= 12 ? 'PM' : 'AM';
-      final minStr = slotTime.minute.toString().padLeft(2, '0');
-      final label = "$hourStr:$minStr $amPm";
+            final key = "${slotTime.hour}:${slotTime.minute}";
+            if (!addedKeys.contains(key)) {
+              addedKeys.add(key);
+              final isBooked = bookedTimes.contains(key);
+              final isPast = isToday && slotTime.isBefore(now.subtract(const Duration(minutes: 5)));
 
-      result.add(TimeSlot(
-        time: slotTime.toIso8601String(),
-        label: label,
-        available: isAvail,
-      ));
-    }
+              final sHour = slotTime.hour > 12 ? (slotTime.hour - 12) : (slotTime.hour == 0 ? 12 : slotTime.hour);
+              final sAmPm = slotTime.hour >= 12 ? 'PM' : 'AM';
+              final sMin = slotTime.minute.toString().padLeft(2, '0');
 
-    // 3. Add Custom Doctor Slots
+              final eHour = endSlotTime.hour > 12 ? (endSlotTime.hour - 12) : (endSlotTime.hour == 0 ? 12 : endSlotTime.hour);
+              final eAmPm = endSlotTime.hour >= 12 ? 'PM' : 'AM';
+              final eMin = endSlotTime.minute.toString().padLeft(2, '0');
+
+              result.add(TimeSlot(
+                time: slotTime.toIso8601String(),
+                label: "$sHour:$sMin $sAmPm – $eHour:$eMin $eAmPm",
+                available: !isBooked && !isPast,
+              ));
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 3. Add Custom Doctor Slots from slots collection
     try {
       Query query = _db.collection('slots');
       if (doctorId.isNotEmpty) {
@@ -652,7 +948,9 @@ class FirebaseService {
             final hourStr = dt.hour > 12 ? (dt.hour - 12) : (dt.hour == 0 ? 12 : dt.hour);
             final amPm = dt.hour >= 12 ? 'PM' : 'AM';
             final minStr = dt.minute.toString().padLeft(2, '0');
-            final label = "$hourStr:$minStr $amPm";
+            final label = data['start_time'] != null && data['end_time'] != null
+                ? "${data['start_time']} – ${data['end_time']}"
+                : "$hourStr:$minStr $amPm";
 
             result.add(TimeSlot(
               time: dt.toIso8601String(),
@@ -663,6 +961,42 @@ class FirebaseService {
         }
       }
     } catch (_) {}
+
+    // 4. If no custom slots, generate standard slots
+    if (result.isEmpty) {
+      for (int i = 0; i < count; i++) {
+        final slotTime = DateTime(
+          targetDate.year,
+          targetDate.month,
+          targetDate.day,
+          startHour,
+        ).add(Duration(minutes: i * durationMin));
+        final endSlotTime = slotTime.add(Duration(minutes: durationMin));
+
+        final key = "${slotTime.hour}:${slotTime.minute}";
+        addedKeys.add(key);
+
+        final isBooked = bookedTimes.contains(key);
+        final isPast = isToday && slotTime.isBefore(now.subtract(const Duration(minutes: 5)));
+        final isAvail = !isBooked && !isPast;
+
+        final hourStr = slotTime.hour > 12
+            ? (slotTime.hour - 12)
+            : (slotTime.hour == 0 ? 12 : slotTime.hour);
+        final amPm = slotTime.hour >= 12 ? 'PM' : 'AM';
+        final minStr = slotTime.minute.toString().padLeft(2, '0');
+
+        final eHour = endSlotTime.hour > 12 ? (endSlotTime.hour - 12) : (endSlotTime.hour == 0 ? 12 : endSlotTime.hour);
+        final eAmPm = endSlotTime.hour >= 12 ? 'PM' : 'AM';
+        final minStr = endSlotTime.minute.toString().padLeft(2, '0');
+
+        result.add(TimeSlot(
+          time: slotTime.toIso8601String(),
+          label: "$hourStr:$minStr $amPm – $eHour:$eMin $eAmPm",
+          available: isAvail,
+        ));
+      }
+    }
 
     result.sort((a, b) => (DateTime.tryParse(a.time) ?? now).compareTo(DateTime.tryParse(b.time) ?? now));
     return result;

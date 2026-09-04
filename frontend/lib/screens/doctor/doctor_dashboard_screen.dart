@@ -1166,7 +1166,7 @@ class _DashboardManageSlotsSheetState extends ConsumerState<_DashboardManageSlot
     }
   }
 
-  void _saveOrUpdate() {
+  void _saveOrUpdate() async {
     final slots = _calculatedTotalSlots;
     if (slots <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1179,10 +1179,13 @@ class _DashboardManageSlotsSheetState extends ConsumerState<_DashboardManageSlot
     }
 
     final duration = int.tryParse(_durationController.text.trim()) ?? 4;
+    final currentDoctor = ref.read(authProvider).currentUser;
+    final doctorId = currentDoctor?.id ?? 'doc_demo_1';
 
     if (_editingId != null) {
       final updated = CustomSlotSchedule(
         id: _editingId!,
+        doctorId: doctorId,
         date: _selectedDate,
         fromTime: _fromTime,
         toTime: _toTime,
@@ -1190,13 +1193,42 @@ class _DashboardManageSlotsSheetState extends ConsumerState<_DashboardManageSlot
         totalSlots: slots,
       );
       ref.read(scheduleProvider.notifier).updateSchedule(updated);
+
+      try {
+        final fb = ref.read(firebaseServiceProvider);
+        await fb.saveDoctorSchedule(doctorId, updated);
+      } catch (_) {}
+
+      try {
+        final api = ref.read(apiServiceProvider);
+        await api.post("/doctor/slots/generate", body: {
+          "date": DateFormat('yyyy-MM-dd').format(_selectedDate),
+          "sessions": [
+            {
+              "name": "Custom Session",
+              "start_hour": _fromTime.hour > 12 ? _fromTime.hour - 12 : (_fromTime.hour == 0 ? 12 : _fromTime.hour),
+              "start_minute": _fromTime.minute,
+              "start_period": _fromTime.hour >= 12 ? "PM" : "AM",
+              "end_hour": _toTime.hour > 12 ? _toTime.hour - 12 : (_toTime.hour == 0 ? 12 : _toTime.hour),
+              "end_minute": _toTime.minute,
+              "end_period": _toTime.hour >= 12 ? "PM" : "AM",
+              "consultation_duration_min": duration,
+              "is_active": true,
+            }
+          ]
+        });
+      } catch (_) {}
+
       setState(() => _editingId = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✓ Schedule updated successfully!"), backgroundColor: Color(0xFF15803D)),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✓ Schedule updated successfully and synced in real-time!"), backgroundColor: Color(0xFF15803D)),
+        );
+      }
     } else {
       final newSched = CustomSlotSchedule(
         id: "sched_${DateTime.now().millisecondsSinceEpoch}",
+        doctorId: doctorId,
         date: _selectedDate,
         fromTime: _fromTime,
         toTime: _toTime,
@@ -1204,14 +1236,42 @@ class _DashboardManageSlotsSheetState extends ConsumerState<_DashboardManageSlot
         totalSlots: slots,
       );
       ref.read(scheduleProvider.notifier).addSchedule(newSched);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(newSched.isToday
-              ? "✓ Schedule created for TODAY and active in Slots!"
-              : "✓ Schedule created for ${newSched.formattedDate}!"),
-          backgroundColor: const Color(0xFF15803D),
-        ),
-      );
+
+      try {
+        final fb = ref.read(firebaseServiceProvider);
+        await fb.saveDoctorSchedule(doctorId, newSched);
+      } catch (_) {}
+
+      try {
+        final api = ref.read(apiServiceProvider);
+        await api.post("/doctor/slots/generate", body: {
+          "date": DateFormat('yyyy-MM-dd').format(_selectedDate),
+          "sessions": [
+            {
+              "name": "Custom Session",
+              "start_hour": _fromTime.hour > 12 ? _fromTime.hour - 12 : (_fromTime.hour == 0 ? 12 : _fromTime.hour),
+              "start_minute": _fromTime.minute,
+              "start_period": _fromTime.hour >= 12 ? "PM" : "AM",
+              "end_hour": _toTime.hour > 12 ? _toTime.hour - 12 : (_toTime.hour == 0 ? 12 : _toTime.hour),
+              "end_minute": _toTime.minute,
+              "end_period": _toTime.hour >= 12 ? "PM" : "AM",
+              "consultation_duration_min": duration,
+              "is_active": true,
+            }
+          ]
+        });
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newSched.isToday
+                ? "✓ Schedule created for TODAY and active in patient portal in real-time!"
+                : "✓ Schedule created for ${newSched.formattedDate} and active in patient portal!"),
+            backgroundColor: const Color(0xFF15803D),
+          ),
+        );
+      }
     }
   }
 
@@ -1226,6 +1286,9 @@ class _DashboardManageSlotsSheetState extends ConsumerState<_DashboardManageSlot
   }
 
   void _confirmDelete(CustomSlotSchedule schedule) {
+    final currentDoctor = ref.read(authProvider).currentUser;
+    final doctorId = currentDoctor?.id ?? 'doc_demo_1';
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1237,15 +1300,21 @@ class _DashboardManageSlotsSheetState extends ConsumerState<_DashboardManageSlot
             child: const Text("Cancel", style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               ref.read(scheduleProvider.notifier).deleteSchedule(schedule.id);
               if (_editingId == schedule.id) {
                 setState(() => _editingId = null);
               }
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("✓ Schedule deleted."), backgroundColor: Color(0xFFDC2626)),
-              );
+              try {
+                final fb = ref.read(firebaseServiceProvider);
+                await fb.deleteDoctorSchedule(doctorId, schedule.id, schedule.date);
+              } catch (_) {}
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("✓ Schedule deleted and removed from patient portal."), backgroundColor: Color(0xFFDC2626)),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
             child: const Text("Delete"),

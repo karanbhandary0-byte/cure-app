@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 class CustomSlotSchedule {
   final String id;
+  final String? doctorId;
   DateTime date;
   TimeOfDay fromTime;
   TimeOfDay toTime;
@@ -12,6 +13,7 @@ class CustomSlotSchedule {
 
   CustomSlotSchedule({
     required this.id,
+    this.doctorId,
     required this.date,
     required this.fromTime,
     required this.toTime,
@@ -25,6 +27,38 @@ class CustomSlotSchedule {
   }
 
   String get formattedDate => DateFormat('MMMM d, yyyy').format(date);
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'doctor_id': doctorId,
+    'date': DateFormat('yyyy-MM-dd').format(date),
+    'from_hour': fromTime.hour,
+    'from_minute': fromTime.minute,
+    'to_hour': toTime.hour,
+    'to_minute': toTime.minute,
+    'duration_minutes': durationMinutes,
+    'total_slots': totalSlots,
+  };
+
+  factory CustomSlotSchedule.fromJson(Map<String, dynamic> json) {
+    final dateStr = json['date']?.toString() ?? '';
+    final parsedDate = DateTime.tryParse(dateStr) ?? DateTime.now();
+    return CustomSlotSchedule(
+      id: json['id']?.toString() ?? 'sched_${DateTime.now().millisecondsSinceEpoch}',
+      doctorId: json['doctor_id']?.toString(),
+      date: parsedDate,
+      fromTime: TimeOfDay(
+        hour: (json['from_hour'] as num?)?.toInt() ?? 6,
+        minute: (json['from_minute'] as num?)?.toInt() ?? 0,
+      ),
+      toTime: TimeOfDay(
+        hour: (json['to_hour'] as num?)?.toInt() ?? 8,
+        minute: (json['to_minute'] as num?)?.toInt() ?? 0,
+      ),
+      durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 4,
+      totalSlots: (json['total_slots'] as num?)?.toInt() ?? 30,
+    );
+  }
 }
 
 class ScheduleNotifier extends StateNotifier<List<CustomSlotSchedule>> {
@@ -50,8 +84,14 @@ class ScheduleNotifier extends StateNotifier<List<CustomSlotSchedule>> {
           ),
         ]);
 
+  void setSchedules(List<CustomSlotSchedule> list) {
+    if (list.isNotEmpty) {
+      state = list;
+    }
+  }
+
   void addSchedule(CustomSlotSchedule schedule) {
-    state = [schedule, ...state];
+    state = [schedule, ...state.where((s) => s.id != schedule.id)];
   }
 
   void updateSchedule(CustomSlotSchedule schedule) {
