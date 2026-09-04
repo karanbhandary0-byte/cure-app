@@ -10,6 +10,7 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/doctor_provider.dart';
 import '../../models/appointment.dart';
+import '../../models/user.dart';
 
 class DoctorPatientDetailScreen extends ConsumerStatefulWidget {
   final String patientId;

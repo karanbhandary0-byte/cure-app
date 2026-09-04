@@ -715,9 +715,10 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
                                   ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
+                              );
+                            },
+                          ),
+              ),
             ),
           ],
         ),
