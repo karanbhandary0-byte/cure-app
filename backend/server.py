@@ -227,6 +227,7 @@ class ConsultationNoteCreate(BaseModel):
     diagnosis: str = ""
     prescription: str = ""  # multiline medicines + dosage
     prescription_image_url: Optional[str] = None
+    report_image_url: Optional[str] = None
     follow_up_instructions: str = ""
     follow_up_date: Optional[str] = None
 
@@ -1352,6 +1353,7 @@ async def doctor_add_consultation(body: ConsultationNoteCreate, doctor: dict = D
         "diagnosis": body.diagnosis,
         "prescription": body.prescription,
         "prescription_image_url": body.prescription_image_url,
+        "report_image_url": body.report_image_url,
         "follow_up_instructions": body.follow_up_instructions,
         "follow_up_date": body.follow_up_date,
         "created_at": now_iso(),

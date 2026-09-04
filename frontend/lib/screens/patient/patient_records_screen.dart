@@ -563,6 +563,58 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
                                       ),
                                     ],
 
+                                    // Lab / Clinical Report Photo Card
+                                    if (item.reportImageUrl != null && item.reportImageUrl!.isNotEmpty) ...[
+                                      const SizedBox(height: AppSpacing.md),
+                                      const Text(
+                                        "LAB / CLINICAL REPORT PHOTO",
+                                        style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      InkWell(
+                                        onTap: () => _showPrescriptionDialog(context, item.reportImageUrl!, title: "Lab Report from ${item.doctor?.name ?? 'Doctor'}"),
+                                        borderRadius: BorderRadius.circular(AppRadius.md),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(AppSpacing.md),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.surface,
+                                            borderRadius: BorderRadius.circular(AppRadius.md),
+                                            border: Border.all(color: const Color(0xFF0284C7).withOpacity(0.35)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 36,
+                                                height: 36,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF0284C7).withOpacity(0.1),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.biotech, color: Color(0xFF0284C7), size: 20),
+                                              ),
+                                              const SizedBox(width: AppSpacing.md),
+                                              const Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      "View Lab / Clinical Report Photo",
+                                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.onSurface),
+                                                    ),
+                                                    Text(
+                                                      "Tap to zoom and examine report findings",
+                                                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF0284C7)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+
                                     if (item.followUpDate != null && item.followUpDate!.isNotEmpty) ...[
                                       const SizedBox(height: AppSpacing.md),
                                       Container(

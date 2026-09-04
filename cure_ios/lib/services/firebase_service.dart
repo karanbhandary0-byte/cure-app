@@ -357,6 +357,7 @@ class FirebaseService {
     required String diagnosis,
     required String prescription,
     String? prescriptionImageUrl,
+    String? reportImageUrl,
     String? followUpInstructions,
     String? followUpDate,
   }) async {
@@ -369,6 +370,7 @@ class FirebaseService {
       'diagnosis': diagnosis,
       'prescription': prescription,
       'prescription_image_url': prescriptionImageUrl,
+      'report_image_url': reportImageUrl,
       'follow_up_instructions': followUpInstructions ?? '',
       'follow_up_date': followUpDate ?? '',
       'created_at': DateTime.now().toIso8601String(),
