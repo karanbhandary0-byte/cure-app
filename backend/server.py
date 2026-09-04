@@ -1525,7 +1525,17 @@ async def patient_cancel_appointment(appointment_id: str, patient: dict = Depend
 
 @api.get("/patient/records")
 async def patient_records(patient: dict = Depends(require_patient)):
-    consults = await db.consultations.find({"patient_id": patient["id"]}).sort("created_at", -1).to_list(100)
+    pid = patient["id"]
+    phone = patient.get("phone", "")
+    pname = patient.get("name", "")
+    
+    query_conditions = [{"patient_id": pid}]
+    if phone:
+        query_conditions.append({"patient_phone": phone})
+    if pname:
+        query_conditions.append({"patient_name": pname})
+
+    consults = await db.consultations.find({"$or": query_conditions}).sort("created_at", -1).to_list(100)
     out = []
     for c in consults:
         doc = await db.doctors.find_one({"_id": c["doctor_id"]}, {"name": 1, "specialty": 1})

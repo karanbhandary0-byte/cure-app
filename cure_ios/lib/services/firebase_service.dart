@@ -363,7 +363,10 @@ class FirebaseService {
   Future<Consultation> createConsultation({
     required String appointmentId,
     required String doctorId,
+    String? doctorName,
+    String? doctorSpecialty,
     required String patientId,
+    String? patientName,
     required String diagnosis,
     required String prescription,
     String? prescriptionImageUrl,
@@ -377,13 +380,20 @@ class FirebaseService {
       'appointment_id': appointmentId,
       'doctor_id': doctorId,
       'patient_id': patientId,
+      if (patientName != null && patientName.isNotEmpty) 'patient_name': patientName,
       'diagnosis': diagnosis,
       'prescription': prescription,
-      'prescription_image_url': prescriptionImageUrl,
-      'report_image_url': reportImageUrl,
+      if (prescriptionImageUrl != null && prescriptionImageUrl.isNotEmpty) 'prescription_image_url': prescriptionImageUrl,
+      if (reportImageUrl != null && reportImageUrl.isNotEmpty) 'report_image_url': reportImageUrl,
       'follow_up_instructions': followUpInstructions ?? '',
       'follow_up_date': followUpDate ?? '',
       'created_at': DateTime.now().toIso8601String(),
+      'doctor': {
+        'id': doctorId,
+        'name': doctorName ?? 'Doctor',
+        'specialty': doctorSpecialty ?? 'Consultation',
+        'clinic_name': 'Cure Clinic',
+      }
     };
 
     await docRef.set(data);
@@ -395,13 +405,20 @@ class FirebaseService {
   Stream<List<Consultation>> streamPatientConsultations(String patientId) {
     return _db
         .collection('consultations')
-        .where('patient_id', isEqualTo: patientId)
         .snapshots()
         .map((snap) {
       final list = snap.docs.map((d) {
-        final data = d.data();
+        final data = Map<String, dynamic>.from(d.data() as Map);
         data['id'] = d.id;
         return Consultation.fromJson(data);
+      }).where((c) {
+        if (patientId.isEmpty) return true;
+        final cPid = (c.patientId ?? '').toLowerCase();
+        final targetPid = patientId.toLowerCase();
+        return cPid == targetPid ||
+            cPid.contains(targetPid) ||
+            targetPid.contains(cPid) ||
+            cPid.isEmpty;
       }).toList();
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
@@ -416,7 +433,7 @@ class FirebaseService {
         .snapshots()
         .map((snap) {
       final list = snap.docs.map((d) {
-        final data = d.data();
+        final data = Map<String, dynamic>.from(d.data() as Map);
         data['id'] = d.id;
         return Appointment.fromJson(data);
       }).toList();

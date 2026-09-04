@@ -180,6 +180,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
     final currentDoctor = ref.read(authProvider).currentUser;
     final doctorId = currentDoctor?.id ?? 'doc_current';
     final doctorName = currentDoctor?.name ?? 'Dr. Sarah';
+    final doctorSpecialty = currentDoctor is Doctor ? (currentDoctor as Doctor).specialty : 'General Physician';
 
     // Always record locally in recordedConsultationsProvider so it's instantly available
     ref.read(recordedConsultationsProvider.notifier).addConsultation(
@@ -204,8 +205,11 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
       final fb = ref.read(firebaseServiceProvider);
       await fb.createConsultation(
         appointmentId: apptId,
-        doctorId: ref.read(authProvider).currentUser?.id ?? '',
+        doctorId: doctorId,
+        doctorName: doctorName,
+        doctorSpecialty: doctorSpecialty,
         patientId: widget.patientId,
+        patientName: patientName,
         diagnosis: diag,
         prescription: pres,
         prescriptionImageUrl: photo,
@@ -233,6 +237,9 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
       await api.post("/doctor/consultations", body: {
         "appointment_id": apptId,
         "patient_id": widget.patientId,
+        "patient_name": patientName,
+        "doctor_name": doctorName,
+        "doctor_specialty": doctorSpecialty,
         "diagnosis": diag,
         "prescription": pres,
         "prescription_image_url": photo,

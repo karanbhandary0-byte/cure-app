@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,11 +22,35 @@ class PatientRecordsScreen extends ConsumerStatefulWidget {
 class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
   List<Consultation> records = [];
   bool isLoading = true;
+  StreamSubscription<List<Consultation>>? _consultationSub;
 
   @override
   void initState() {
     super.initState();
+    _initLiveStream();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _consultationSub?.cancel();
+    super.dispose();
+  }
+
+  void _initLiveStream() {
+    final authState = ref.read(authProvider);
+    final patient = authState.currentUser is Patient ? authState.currentUser as Patient : null;
+    final pid = patient?.id ?? 'patient_demo';
+
+    final fb = ref.read(firebaseServiceProvider);
+    _consultationSub = fb.streamPatientConsultations(pid).listen((list) {
+      if (mounted && list.isNotEmpty) {
+        setState(() {
+          records = list;
+          isLoading = false;
+        });
+      }
+    });
   }
 
   void _showPrescriptionDialog(BuildContext context, String imageUrlOrBase64, {String? title}) {
@@ -80,7 +105,7 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
               const Padding(
                 padding: EdgeInsets.all(12),
                 child: Text(
-                  "Pinch or drag to zoom in and examine prescription details",
+                  "Pinch or drag to zoom in and examine details",
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ),
@@ -99,8 +124,7 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
 
     try {
       final fb = ref.read(firebaseServiceProvider);
-      final fbStream = fb.streamPatientConsultations(pid);
-      final list = await fbStream.first.timeout(const Duration(seconds: 2));
+      final list = await fb.getPatientConsultations(pid);
       if (mounted && list.isNotEmpty) {
         setState(() {
           records = list;
@@ -287,6 +311,7 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
             diagnosis: rc.diagnosis,
             prescription: rc.prescription,
             prescriptionImageUrl: rc.prescriptionImageUrl,
+            reportImageUrl: rc.reportImageUrl,
             followUpInstructions: rc.followUpInstructions,
             followUpDate: rc.followUpDate,
             createdAt: rc.createdAt,
@@ -301,15 +326,27 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
       }
     }
 
-    // Filter consultations STRICTLY for the active patient profile so details are never mixed
+    // Filter consultations for the active patient profile so details are properly categorized
     final memberRecords = mergedRecords.where((c) {
-      if (c.patientName != null && c.patientName!.trim().isNotEmpty) {
-        return c.patientName!.trim().toLowerCase() == activeMember.name.trim().toLowerCase();
+      if (activeMember.isPrimary) {
+        if (c.patientName != null && c.patientName!.trim().isNotEmpty) {
+          final pName = c.patientName!.trim().toLowerCase();
+          final mName = activeMember.name.trim().toLowerCase();
+          if (pName == mName || pName == 'patient' || pName.isEmpty) return true;
+          final otherMembers = membersState.members.where((m) => !m.isPrimary);
+          final matchesOther = otherMembers.any((m) => m.name.trim().toLowerCase() == pName);
+          return !matchesOther;
+        }
+        return true;
+      } else {
+        if (c.patientName != null && c.patientName!.trim().isNotEmpty) {
+          return c.patientName!.trim().toLowerCase() == activeMember.name.trim().toLowerCase();
+        }
+        if (c.patientId != null && c.patientId!.trim().isNotEmpty) {
+          return c.patientId!.toLowerCase().contains(activeMember.id.toLowerCase());
+        }
+        return false;
       }
-      if (c.patientId != null && c.patientId!.trim().isNotEmpty) {
-        return c.patientId!.contains(activeMember.id);
-      }
-      return activeMember.isPrimary;
     }).toList();
 
     return Scaffold(
@@ -402,62 +439,68 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
 
             const SizedBox(height: AppSpacing.md),
 
-            // Records List
+            // Records List with Pull-To-Refresh
             Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.brand))
-                  : memberRecords.isEmpty
-                      ? Center(
-                          child: Padding(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                color: const Color(0xFF0F766E),
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.brand))
+                    : memberRecords.isEmpty
+                        ? ListView(
                             padding: const EdgeInsets.all(AppSpacing.xl),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 64,
-                                  height: 64,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFF1F5F9),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.description_outlined, size: 32, color: Color(0xFF94A3B8)),
+                            children: [
+                              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF1F5F9),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.description_outlined, size: 32, color: Color(0xFF94A3B8)),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      "No records for ${activeMember.name} yet",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: AppColors.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      "Prescriptions and medical documents uploaded by your doctor will appear here automatically.",
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    ElevatedButton.icon(
+                                      onPressed: () => context.push('/patient/book'),
+                                      icon: const Icon(Icons.calendar_today, size: 16),
+                                      label: Text("Book Visit for ${activeMember.name}"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF0F766E),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  "No records for ${activeMember.name} yet",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  "Prescriptions and doctor slips for ${activeMember.name} will be saved and displayed here separately.",
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
-                                ),
-                                const SizedBox(height: 20),
-                                ElevatedButton.icon(
-                                  onPressed: () => context.push('/patient/book'),
-                                  icon: const Icon(Icons.calendar_today, size: 16),
-                                  label: Text("Book Visit for ${activeMember.name}"),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0F766E),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(AppSpacing.xl),
-                          itemCount: memberRecords.length,
-                          itemBuilder: (context, index) {
-                            final item = memberRecords[index];
-                            final photoUrl = item.prescriptionImageUrl;
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            itemCount: memberRecords.length,
+                            itemBuilder: (context, index) {
+                              final item = memberRecords[index];
+                              final photoUrl = item.prescriptionImageUrl;
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: AppSpacing.md),
