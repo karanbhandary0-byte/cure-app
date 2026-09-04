@@ -57,6 +57,64 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
     ),
   ];
 
+  void _confirmRemoveStaff(AuthorizedStaffMember staff) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.person_remove_outlined, color: Colors.red.shade700, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                "Remove Staff Member",
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.onSurface),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          "Are you sure you want to remove '${staff.name}' (${staff.designation}) from your clinical staff team? Their clinical access and verification code (${staff.verificationCode}) will be revoked immediately.",
+          style: const TextStyle(fontSize: 14, color: AppColors.muted, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel", style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              setState(() {
+                _staffList.removeWhere((s) => s.id == staff.id);
+              });
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Staff member '${staff.name}' removed successfully."),
+                  backgroundColor: Colors.red.shade700,
+                ),
+              );
+            },
+            child: const Text("Remove Staff", style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showEditClinicModal(Doctor doctor) {
     final nameController = TextEditingController(text: doctor.clinicName);
     final addressController = TextEditingController(
@@ -846,31 +904,50 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                             ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: staff.isVerified ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                staff.isVerified ? Icons.check_circle : Icons.hourglass_top,
-                                size: 12,
-                                color: staff.isVerified ? const Color(0xFF15803D) : const Color(0xFFD97706),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: staff.isVerified ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(AppRadius.pill),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                staff.isVerified ? "Verified & Active" : "Pending Verification",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: staff.isVerified ? const Color(0xFF15803D) : const Color(0xFFD97706),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    staff.isVerified ? Icons.check_circle : Icons.hourglass_top,
+                                    size: 12,
+                                    color: staff.isVerified ? const Color(0xFF15803D) : const Color(0xFFD97706),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    staff.isVerified ? "Verified & Active" : "Pending Verification",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: staff.isVerified ? const Color(0xFF15803D) : const Color(0xFFD97706),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: () => _confirmRemoveStaff(staff),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  border: Border.all(color: Colors.red.shade200),
                                 ),
+                                child: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade700),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -880,30 +957,57 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       style: const TextStyle(fontSize: 12, color: AppColors.muted),
                     ),
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            "Verification Code: ",
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
-                          Text(
-                            staff.verificationCode,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F766E),
-                              letterSpacing: 1,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "Verification Code: ",
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.muted),
+                              ),
+                              Text(
+                                staff.verificationCode,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F766E),
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => _confirmRemoveStaff(staff),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.remove_circle_outline, size: 13, color: Colors.red.shade600),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Remove",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
