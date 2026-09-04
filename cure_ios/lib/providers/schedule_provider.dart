@@ -122,23 +122,27 @@ class BookedPatientScheduleItem {
   final String id;
   final int slotNumber;
   final String name;
+  final String phone;
   final int age;
   final String gender;
   final DateTime date;
   final String slotTime;
   final bool isWalkIn;
   final String status;
+  final String? loginCode;
 
   BookedPatientScheduleItem({
     required this.id,
     required this.slotNumber,
     required this.name,
+    this.phone = '',
     required this.age,
     this.gender = 'Other',
     required this.date,
     required this.slotTime,
     this.isWalkIn = false,
     this.status = 'scheduled',
+    this.loginCode,
   });
 }
 
@@ -150,6 +154,7 @@ class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientSch
             id: 'demo_1',
             slotNumber: 1,
             name: 'Roy',
+            phone: '+91 98765 43211',
             age: 35,
             gender: 'Male',
             date: DateTime.now(),
@@ -161,6 +166,7 @@ class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientSch
             id: 'demo_2',
             slotNumber: 2,
             name: 'Anjali',
+            phone: '+91 98765 43212',
             age: 28,
             gender: 'Female',
             date: DateTime.now(),
@@ -172,6 +178,7 @@ class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientSch
             id: 'demo_3',
             slotNumber: 3,
             name: 'Rahul',
+            phone: '+91 98765 43213',
             age: 42,
             gender: 'Male',
             date: DateTime.now(),
@@ -183,10 +190,13 @@ class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientSch
 
   void addWalkInPatient({
     required String name,
+    String phone = '',
     required int age,
     String gender = 'Other',
     DateTime? date,
     String? status,
+    String? loginCode,
+    String? id,
   }) {
     final targetDate = date ?? DateTime.now();
     final sameDayPatients = state.where((p) =>
@@ -198,15 +208,17 @@ class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientSch
     final nowTime = DateFormat('h:mm a').format(DateTime.now());
 
     final newPatient = BookedPatientScheduleItem(
-      id: 'walkin_${DateTime.now().millisecondsSinceEpoch}',
+      id: id ?? 'walkin_${DateTime.now().millisecondsSinceEpoch}',
       slotNumber: nextSlotNo,
       name: name,
+      phone: phone,
       age: age,
       gender: gender,
       date: targetDate,
       slotTime: nowTime,
       isWalkIn: true,
       status: status ?? 'checked_in',
+      loginCode: loginCode ?? '123456',
     );
 
     state = [...state, newPatient];

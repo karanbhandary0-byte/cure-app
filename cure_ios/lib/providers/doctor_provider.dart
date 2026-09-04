@@ -357,7 +357,7 @@ final patientDetailProvider =
       patient: Patient(
         id: booked.id,
         name: booked.name,
-        phone: "+91 98765 43210",
+        phone: booked.phone.isNotEmpty ? booked.phone : "+91 98765 43210",
         age: booked.age,
         gender: booked.gender,
         allergies: "None",

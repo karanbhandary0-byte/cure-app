@@ -1032,20 +1032,85 @@ async def book_appointment_slot(body: SlotBookingRequest, patient: dict = Depend
     }
 
 
-# ---------------- Walk-in Queue Slot Assignment -----------------
+# ---------------- Walk-in Queue Slot Assignment & Patient Code Generation -----------------
 @api.post("/staff/walkin/assign-slot")
 async def assign_walkin_slot(body: WalkinSlotAssign, staff: dict = Depends(get_current_user)):
     target_date = body.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     doc_id = staff.get("doctor_id", "doc_demo_001")
     
-    # Try finding next available slot today
+    # 1. Create or update patient in db.patients so records are linked
+    clean_phone = body.phone.strip()
+    patient = await db.patients.find_one({"phone": clean_phone})
+    if not patient:
+        pid = f"pat_{uuid.uuid4().hex[:12]}"
+        patient = {
+            "_id": pid,
+            "name": body.patient_name.strip(),
+            "phone": clean_phone,
+            "age": body.age,
+            "gender": body.gender,
+            "allergies": "",
+            "doctor_id": doc_id,
+            "created_at": now_iso(),
+        }
+        await db.patients.insert_one(patient)
+    else:
+        # Keep existing patient record updated with doctor & demographics
+        await db.patients.update_one(
+            {"_id": patient["_id"]},
+            {"$set": {
+                "name": body.patient_name.strip() if body.patient_name else patient.get("name"),
+                "age": body.age or patient.get("age"),
+                "gender": body.gender or patient.get("gender"),
+                "doctor_id": doc_id,
+            }}
+        )
+
+    # 2. Generate and store OTP / App Access Code for patient login
+    code = "123456"
+    await db.otp_codes.update_one(
+        {"phone": clean_phone},
+        {"$set": {
+            "code": code,
+            "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        }},
+        upsert=True,
+    )
+
+    # 3. Send SMS with access code and download info
+    send_sms(
+        clean_phone,
+        f"Welcome to Cure! Your patient app login code is {code}. Install the Cure app to access your medical records, prescriptions, and visit details."
+    )
+
+    # 4. Create appointment document
+    aid = f"apt_{uuid.uuid4().hex[:12]}"
+    appt_doc = {
+        "_id": aid,
+        "doctor_id": doc_id,
+        "patient_id": patient["_id"],
+        "patient_name": body.patient_name.strip(),
+        "patient_phone": clean_phone,
+        "scheduled_at": now_iso(),
+        "duration_min": 30,
+        "status": "checked_in",
+        "reason": "Walk-in Consultation",
+        "appointment_type": "walk_in",
+        "feedback_submitted": False,
+        "created_at": now_iso(),
+    }
+    await db.appointments.insert_one(appt_doc)
+
+    # 5. Try finding next available slot today
     available_slot = await db.slots.find_one_and_update(
         {"doctor_id": doc_id, "date": target_date, "status": "available"},
         {
             "$set": {
                 "status": "checked_in",
-                "patient_name": body.patient_name,
-                "patient_phone": body.phone,
+                "patient_id": patient["_id"],
+                "patient_name": body.patient_name.strip(),
+                "patient_phone": clean_phone,
+                "appointment_id": aid,
                 "appointment_type": "walk_in",
                 "booked_at": now_iso(),
             }
@@ -1058,9 +1123,16 @@ async def assign_walkin_slot(body: WalkinSlotAssign, staff: dict = Depends(get_c
         return {
             "ok": True,
             "assigned_to_slot": True,
+            "patient_id": patient["_id"],
+            "patient_name": patient["name"],
+            "phone": clean_phone,
             "token_number": available_slot["token_number"],
+            "code": code,
+            "mock_code": code,
             "slot_time": f"{available_slot['start_time']} – {available_slot['end_time']}",
             "slot": strip_id(available_slot),
+            "appointment_id": aid,
+            "message": f"Walk-in patient registered. App access code {code} sent to {clean_phone}."
         }
     
     # All slots booked -> Allocate queue waiting position
@@ -1069,9 +1141,15 @@ async def assign_walkin_slot(body: WalkinSlotAssign, staff: dict = Depends(get_c
     return {
         "ok": True,
         "assigned_to_slot": False,
+        "patient_id": patient["_id"],
+        "patient_name": patient["name"],
+        "phone": clean_phone,
         "queue_position": total_slots_count + 1,
         "token_number": walkin_token,
-        "message": "All scheduled slots are currently booked. Walk-in assigned to waiting queue."
+        "code": code,
+        "mock_code": code,
+        "appointment_id": aid,
+        "message": f"Walk-in patient registered to waiting queue. App access code {code} sent to {clean_phone}."
     }
 
 
@@ -1321,10 +1399,20 @@ async def doctor_add_patient(body: PatientCreate, doctor: dict = Depends(require
 async def doctor_patient_detail(patient_id: str, doctor: dict = Depends(require_doctor)):
     pat = await db.patients.find_one({"_id": patient_id})
     if not pat:
+        pat = await db.patients.find_one({"phone": patient_id})
+    if not pat:
         raise HTTPException(status_code=404, detail="Patient not found")
-    history = await db.appointments.find({"patient_id": patient_id, "doctor_id": doctor["id"]}).sort("scheduled_at", -1).to_list(100)
-    consults = await db.consultations.find({"patient_id": patient_id, "doctor_id": doctor["id"]}).sort("created_at", -1).to_list(100)
-    feedbacks = await db.feedbacks.find({"patient_id": patient_id, "doctor_id": doctor["id"]}).sort("created_at", -1).to_list(100)
+    real_pid = pat["_id"]
+    phone = pat.get("phone", "")
+    appt_query = {"$or": [{"patient_id": real_pid}, {"patient_id": patient_id}]}
+    consult_query = {"$or": [{"patient_id": real_pid}, {"patient_id": patient_id}]}
+    if phone:
+        appt_query["$or"].append({"patient_phone": phone})
+        consult_query["$or"].append({"patient_phone": phone})
+
+    history = await db.appointments.find(appt_query).sort("scheduled_at", -1).to_list(100)
+    consults = await db.consultations.find(consult_query).sort("created_at", -1).to_list(100)
+    feedbacks = await db.feedbacks.find({"patient_id": real_pid}).sort("created_at", -1).to_list(100)
     return {
         "patient": strip_id(pat),
         "appointments": [strip_id(a) for a in history],
@@ -1344,11 +1432,18 @@ async def doctor_add_consultation(body: ConsultationNoteCreate, doctor: dict = D
             patient_id = parts[1]
     if not patient_id:
         raise HTTPException(status_code=404, detail="Appointment or patient not found")
+
+    pat = await db.patients.find_one({"$or": [{"_id": patient_id}, {"phone": patient_id}]})
+    p_phone = pat.get("phone", "") if pat else (appt.get("patient_phone", "") if appt else "")
+    p_name = pat.get("name", "") if pat else (appt.get("patient_name", "") if appt else "")
+
     cid = str(uuid.uuid4())
     note = {
         "_id": cid,
         "appointment_id": body.appointment_id,
-        "patient_id": patient_id,
+        "patient_id": pat["_id"] if pat else patient_id,
+        "patient_phone": p_phone,
+        "patient_name": p_name,
         "doctor_id": doctor["id"],
         "diagnosis": body.diagnosis,
         "prescription": body.prescription,
