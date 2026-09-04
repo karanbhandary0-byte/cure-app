@@ -967,7 +967,7 @@ class FirebaseService {
 
     // 3. Add Custom Doctor Slots from slots collection
     try {
-      Query query = _db.collection('slots');
+      Query<Map<String, dynamic>> query = _db.collection('slots');
       if (doctorId.isNotEmpty) {
         query = query.where('doctor_id', isEqualTo: doctorId);
       }
@@ -1064,7 +1064,7 @@ class FirebaseService {
     try {
       final snap = await _db.collection('appointments').where('patient_id', isEqualTo: patientId).get();
       final list = snap.docs.map((d) {
-        final data = Map<String, dynamic>.from(d.data());
+        final data = Map<String, dynamic>.from(d.data() as Map);
         data['id'] = d.id;
         return Appointment.fromJson(data);
       }).toList();
@@ -1078,13 +1078,13 @@ class FirebaseService {
   /// Get Patient Consultations from Firestore (Optionally filtered by Doctor ID for privacy)
   Future<List<Consultation>> getPatientConsultations(String patientId, {String? doctorId}) async {
     try {
-      Query query = _db.collection('consultations').where('patient_id', isEqualTo: patientId);
+      Query<Map<String, dynamic>> query = _db.collection('consultations').where('patient_id', isEqualTo: patientId);
       if (doctorId != null && doctorId.isNotEmpty) {
         query = query.where('doctor_id', isEqualTo: doctorId);
       }
       final snap = await query.get();
       final list = snap.docs.map((d) {
-        final data = Map<String, dynamic>.from(d.data());
+        final data = Map<String, dynamic>.from(d.data() as Map);
         data['id'] = d.id;
         return Consultation.fromJson(data);
       }).toList();
@@ -1100,7 +1100,7 @@ class FirebaseService {
     try {
       final snap = await _db.collection('feedbacks').where('patient_id', isEqualTo: patientId).get();
       final list = snap.docs.map((d) {
-        final data = Map<String, dynamic>.from(d.data());
+        final data = Map<String, dynamic>.from(d.data() as Map);
         data['id'] = d.id;
         return PatientFeedbackItem.fromJson(data);
       }).toList();
@@ -1116,7 +1116,7 @@ class FirebaseService {
       final Map<String, Patient> patientMap = {};
 
       // 1. Get from appointments
-      Query apptsQuery = _db.collection('appointments');
+      Query<Map<String, dynamic>> apptsQuery = _db.collection('appointments');
       if (doctorId.isNotEmpty) {
         apptsQuery = apptsQuery.where('doctor_id', isEqualTo: doctorId);
       }
@@ -1141,7 +1141,7 @@ class FirebaseService {
       // 2. Supplement with registered patients from 'patients' collection
       final patSnap = await _db.collection('patients').get();
       for (final d in patSnap.docs) {
-        final data = Map<String, dynamic>.from(d.data());
+        final data = Map<String, dynamic>.from(d.data() as Map);
         data['id'] = d.id;
         final p = Patient.fromJson(data);
         patientMap[p.id] = p;
@@ -1158,7 +1158,7 @@ class FirebaseService {
   /// Calculate Doctor Analytics from Live Firestore data
   Future<DoctorAnalytics> fetchDoctorAnalytics(String doctorId) async {
     try {
-      Query apptsQuery = _db.collection('appointments');
+      Query<Map<String, dynamic>> apptsQuery = _db.collection('appointments');
       if (doctorId.isNotEmpty) {
         apptsQuery = apptsQuery.where('doctor_id', isEqualTo: doctorId);
       }
@@ -1178,7 +1178,7 @@ class FirebaseService {
       final completed = appts.where((a) => a.status == 'completed').length;
 
       // Feedbacks
-      Query fbsQuery = _db.collection('feedbacks');
+      Query<Map<String, dynamic>> fbsQuery = _db.collection('feedbacks');
       if (doctorId.isNotEmpty) {
         fbsQuery = fbsQuery.where('doctor_id', isEqualTo: doctorId);
       }
