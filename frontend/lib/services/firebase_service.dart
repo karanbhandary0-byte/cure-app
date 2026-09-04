@@ -1075,10 +1075,14 @@ class FirebaseService {
     }
   }
 
-  /// Get Patient Consultations from Firestore
-  Future<List<Consultation>> getPatientConsultations(String patientId) async {
+  /// Get Patient Consultations from Firestore (Optionally filtered by Doctor ID for privacy)
+  Future<List<Consultation>> getPatientConsultations(String patientId, {String? doctorId}) async {
     try {
-      final snap = await _db.collection('consultations').where('patient_id', isEqualTo: patientId).get();
+      Query query = _db.collection('consultations').where('patient_id', isEqualTo: patientId);
+      if (doctorId != null && doctorId.isNotEmpty) {
+        query = query.where('doctor_id', isEqualTo: doctorId);
+      }
+      final snap = await query.get();
       final list = snap.docs.map((d) {
         final data = Map<String, dynamic>.from(d.data());
         data['id'] = d.id;

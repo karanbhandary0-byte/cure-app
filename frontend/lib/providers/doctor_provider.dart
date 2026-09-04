@@ -298,9 +298,13 @@ final patientDetailProvider =
   // 1. Try Cloud Firestore first
   try {
     final fb = ref.read(firebaseServiceProvider);
+    final authState = ref.read(authProvider);
+    final Doctor? currentDoc = authState.currentUser is Doctor ? authState.currentUser as Doctor : null;
+    final currentDocId = currentDoc?.id;
+
     final patient = await fb.getPatient(patientId);
     final appts = await fb.getPatientAppointments(patientId);
-    final consults = await fb.getPatientConsultations(patientId);
+    final consults = await fb.getPatientConsultations(patientId, doctorId: currentDocId);
     final fbs = await fb.getPatientFeedbacks(patientId);
 
     if (patient != null) {

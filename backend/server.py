@@ -1322,9 +1322,9 @@ async def doctor_patient_detail(patient_id: str, doctor: dict = Depends(require_
     pat = await db.patients.find_one({"_id": patient_id})
     if not pat:
         raise HTTPException(status_code=404, detail="Patient not found")
-    history = await db.appointments.find({"patient_id": patient_id}).sort("scheduled_at", -1).to_list(100)
-    consults = await db.consultations.find({"patient_id": patient_id}).sort("created_at", -1).to_list(100)
-    feedbacks = await db.feedbacks.find({"patient_id": patient_id}).sort("created_at", -1).to_list(100)
+    history = await db.appointments.find({"patient_id": patient_id, "doctor_id": doctor["id"]}).sort("scheduled_at", -1).to_list(100)
+    consults = await db.consultations.find({"patient_id": patient_id, "doctor_id": doctor["id"]}).sort("created_at", -1).to_list(100)
+    feedbacks = await db.feedbacks.find({"patient_id": patient_id, "doctor_id": doctor["id"]}).sort("created_at", -1).to_list(100)
     return {
         "patient": strip_id(pat),
         "appointments": [strip_id(a) for a in history],
