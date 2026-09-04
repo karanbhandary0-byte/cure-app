@@ -528,6 +528,39 @@ class FirebaseService {
     return PatientFeedbackItem.fromJson(data);
   }
 
+  /// Stream Slots for Doctor
+  Stream<List<CustomSlot>> streamDoctorSlots(String doctorId) {
+    return _db
+        .collection('slots')
+        .where('doctor_id', isEqualTo: doctorId)
+        .snapshots()
+        .map((snap) {
+      return snap.docs.map((d) {
+        final data = d.data();
+        data['id'] = d.id;
+        return CustomSlot.fromJson(data);
+      }).toList();
+    });
+  }
+
+  /// Add Custom Slot
+  Future<CustomSlot> addSlot(String doctorId, DateTime scheduledAt) async {
+    final docRef = _db.collection('slots').doc();
+    final data = {
+      'id': docRef.id,
+      'doctor_id': doctorId,
+      'scheduled_at': scheduledAt.toIso8601String(),
+      'is_booked': false,
+    };
+    await docRef.set(data);
+    return CustomSlot.fromJson(data);
+  }
+
+  /// Delete Custom Slot
+  Future<void> deleteSlot(String slotId) async {
+    await _db.collection('slots').doc(slotId).delete();
+  }
+
   /// Stream Schedules for Doctor
   Stream<List<CustomSlotSchedule>> streamDoctorSchedules(String doctorId) {
     return _db
@@ -776,15 +809,15 @@ class FirebaseService {
 
             final hourStr = slotTime.hour > 12 ? (slotTime.hour - 12) : (slotTime.hour == 0 ? 12 : slotTime.hour);
             final amPm = slotTime.hour >= 12 ? 'PM' : 'AM';
-            final minStr = slotTime.minute.toString().padLeft(2, '0');
+            final sMin = slotTime.minute.toString().padLeft(2, '0');
 
             final eHour = endSlotTime.hour > 12 ? (endSlotTime.hour - 12) : (endSlotTime.hour == 0 ? 12 : endSlotTime.hour);
             final eAmPm = endSlotTime.hour >= 12 ? 'PM' : 'AM';
-            final minStr = endSlotTime.minute.toString().padLeft(2, '0');
+            final eMin = endSlotTime.minute.toString().padLeft(2, '0');
 
             result.add(TimeSlot(
               time: slotTime.toIso8601String(),
-              label: "$hourStr:$minStr $amPm – $eHour:$eMin $eAmPm",
+              label: "$hourStr:$sMin $amPm – $eHour:$eMin $eAmPm",
               available: !isBooked && !isPast,
             ));
           }
@@ -984,15 +1017,15 @@ class FirebaseService {
             ? (slotTime.hour - 12)
             : (slotTime.hour == 0 ? 12 : slotTime.hour);
         final amPm = slotTime.hour >= 12 ? 'PM' : 'AM';
-        final minStr = slotTime.minute.toString().padLeft(2, '0');
+        final sMin = slotTime.minute.toString().padLeft(2, '0');
 
         final eHour = endSlotTime.hour > 12 ? (endSlotTime.hour - 12) : (endSlotTime.hour == 0 ? 12 : endSlotTime.hour);
         final eAmPm = endSlotTime.hour >= 12 ? 'PM' : 'AM';
-        final minStr = endSlotTime.minute.toString().padLeft(2, '0');
+        final eMin = endSlotTime.minute.toString().padLeft(2, '0');
 
         result.add(TimeSlot(
           time: slotTime.toIso8601String(),
-          label: "$hourStr:$minStr $amPm – $eHour:$eMin $eAmPm",
+          label: "$hourStr:$sMin $amPm – $eHour:$eMin $eAmPm",
           available: isAvail,
         ));
       }
