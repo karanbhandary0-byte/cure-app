@@ -288,6 +288,7 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
             prescription: rc.prescription,
             prescriptionImageUrl: rc.prescriptionImageUrl,
             followUpInstructions: rc.followUpInstructions,
+            followUpDate: rc.followUpDate,
             createdAt: rc.createdAt,
             doctor: Doctor(
               id: rc.doctorId,
@@ -558,6 +559,61 @@ class _PatientRecordsScreenState extends ConsumerState<PatientRecordsScreen> {
                                               const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.brand),
                                             ],
                                           ),
+                                        ),
+                                      ),
+                                    ],
+
+                                    if (item.followUpDate != null && item.followUpDate!.isNotEmpty) ...[
+                                      const SizedBox(height: AppSpacing.md),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0F766E).withOpacity(0.08),
+                                          borderRadius: BorderRadius.circular(AppRadius.md),
+                                          border: Border.all(color: const Color(0xFF0F766E).withOpacity(0.3)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.event_available, color: Color(0xFF0F766E), size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    "NEXT RECOMMENDED FOLLOW-UP",
+                                                    style: TextStyle(
+                                                      color: Color(0xFF0F766E),
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w700,
+                                                      letterSpacing: 0.5,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    item.followUpDate!,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF0F766E),
+                                                      fontWeight: FontWeight.w700,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+
+                                    if (item.followUpInstructions != null && item.followUpInstructions!.isNotEmpty) ...[
+                                      const SizedBox(height: AppSpacing.sm),
+                                      Text(
+                                        "Follow-up Advice: ${item.followUpInstructions}",
+                                        style: const TextStyle(
+                                          color: AppColors.muted,
+                                          fontSize: 12,
+                                          fontStyle: FontStyle.italic,
                                         ),
                                       ),
                                     ],

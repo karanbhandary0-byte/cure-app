@@ -35,6 +35,7 @@ void main() {
         'diagnosis': 'Viral flu',
         'prescription': 'Paracetamol 500mg',
         'follow_up_instructions': 'Drink plenty of water',
+        'follow_up_date': '2026-09-10',
         'created_at': '2026-08-29T10:30:00.000Z',
       });
 
@@ -42,6 +43,7 @@ void main() {
       expect(c.diagnosis, 'Viral flu');
       expect(c.prescription, 'Paracetamol 500mg');
       expect(c.followUpInstructions, 'Drink plenty of water');
+      expect(c.followUpDate, '2026-09-10');
       expect(c.createdAt.year, 2026);
     });
 

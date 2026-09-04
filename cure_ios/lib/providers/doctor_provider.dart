@@ -398,6 +398,7 @@ class RecordedConsultation {
   final String prescription;
   final String? prescriptionImageUrl;
   final String? followUpInstructions;
+  final String? followUpDate;
   final DateTime createdAt;
   final String doctorName;
 
@@ -411,6 +412,7 @@ class RecordedConsultation {
     required this.prescription,
     this.prescriptionImageUrl,
     this.followUpInstructions,
+    this.followUpDate,
     required this.createdAt,
     required this.doctorName,
   });

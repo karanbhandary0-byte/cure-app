@@ -21,6 +21,7 @@ class Consultation {
   final String prescription;
   final String? prescriptionImageUrl;
   final String? followUpInstructions;
+  final String? followUpDate;
   final DateTime createdAt;
   final Doctor? doctor;
 
@@ -33,6 +34,7 @@ class Consultation {
     required this.prescription,
     this.prescriptionImageUrl,
     this.followUpInstructions,
+    this.followUpDate,
     required this.createdAt,
     this.doctor,
   });
@@ -47,6 +49,7 @@ class Consultation {
       prescription: json['prescription']?.toString() ?? '',
       prescriptionImageUrl: json['prescription_image_url']?.toString(),
       followUpInstructions: json['follow_up_instructions']?.toString(),
+      followUpDate: json['follow_up_date']?.toString(),
       createdAt: _parseDateTime(json['created_at']),
       doctor: json['doctor'] != null ? Doctor.fromJson(json['doctor']) : null,
     );
@@ -62,6 +65,7 @@ class Consultation {
       'prescription': prescription,
       'prescription_image_url': prescriptionImageUrl,
       'follow_up_instructions': followUpInstructions,
+      'follow_up_date': followUpDate,
       'created_at': createdAt.toIso8601String(),
       'doctor': doctor?.toJson(),
     };

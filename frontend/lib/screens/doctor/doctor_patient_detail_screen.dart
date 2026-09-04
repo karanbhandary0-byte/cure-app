@@ -21,9 +21,8 @@ class DoctorPatientDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailScreen> {
-  final _diagController = TextEditingController();
-  final _presController = TextEditingController();
   final _followUpController = TextEditingController();
+  DateTime? _nextFollowUpDate;
   Uint8List? _prescriptionImageBytes;
   String? _prescriptionBase64;
   bool isPickingImage = false;
@@ -31,8 +30,6 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
 
   @override
   void dispose() {
-    _diagController.dispose();
-    _presController.dispose();
     _followUpController.dispose();
     super.dispose();
   }
@@ -130,17 +127,19 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
   }
 
   void _submitConsultation(String? appointmentId, [String? patientName]) async {
-    if (_diagController.text.trim().isEmpty && _prescriptionBase64 == null && _presController.text.trim().isEmpty) {
+    final followUp = _followUpController.text.trim();
+    final followUpDateStr = _nextFollowUpDate != null ? DateFormat('yyyy-MM-dd').format(_nextFollowUpDate!) : null;
+    final photo = _prescriptionBase64;
+
+    if (followUp.isEmpty && photo == null && followUpDateStr == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a diagnosis, prescription or attach a prescription photo.")),
+        const SnackBar(content: Text("Please enter follow-up notes, attach a prescription photo, or select next follow-up date.")),
       );
       return;
     }
     setState(() => isSaving = true);
-    final diag = _diagController.text.trim().isNotEmpty ? _diagController.text.trim() : "Prescription Consultation";
-    final pres = _presController.text.trim();
-    final followUp = _followUpController.text.trim();
-    final photo = _prescriptionBase64;
+    final diag = followUp.isNotEmpty ? followUp : "Doctor Consultation & Prescription";
+    final pres = "";
     final apptId = (appointmentId != null && appointmentId.isNotEmpty)
         ? appointmentId
         : 'appt_${widget.patientId}_${DateTime.now().millisecondsSinceEpoch}';
@@ -161,6 +160,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         prescription: pres,
         prescriptionImageUrl: photo,
         followUpInstructions: followUp,
+        followUpDate: followUpDateStr,
         createdAt: DateTime.now(),
         doctorName: doctorName,
       ),
@@ -176,12 +176,12 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         prescription: pres,
         prescriptionImageUrl: photo,
         followUpInstructions: followUp,
+        followUpDate: followUpDateStr,
       );
 
-      _diagController.clear();
-      _presController.clear();
       _followUpController.clear();
       setState(() {
+        _nextFollowUpDate = null;
         _prescriptionImageBytes = null;
         _prescriptionBase64 = null;
       });
@@ -200,12 +200,12 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
         "prescription": pres,
         "prescription_image_url": photo,
         "follow_up_instructions": followUp,
+        "follow_up_date": followUpDateStr,
       });
 
-      _diagController.clear();
-      _presController.clear();
       _followUpController.clear();
       setState(() {
+        _nextFollowUpDate = null;
         _prescriptionImageBytes = null;
         _prescriptionBase64 = null;
       });
@@ -215,6 +215,32 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
     } finally {
       if (mounted) setState(() => isSaving = false);
     }
+  }
+
+  Widget _buildQuickDateChip(String label, int days) {
+    final targetDate = DateTime.now().add(Duration(days: days));
+    final isSelected = _nextFollowUpDate != null &&
+        _nextFollowUpDate!.year == targetDate.year &&
+        _nextFollowUpDate!.month == targetDate.month &&
+        _nextFollowUpDate!.day == targetDate.day;
+
+    return ActionChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: isSelected ? Colors.white : AppColors.brand,
+        ),
+      ),
+      backgroundColor: isSelected ? AppColors.brand : AppColors.brand.withOpacity(0.08),
+      side: BorderSide(color: isSelected ? AppColors.brand : AppColors.brand.withOpacity(0.2)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      onPressed: () {
+        setState(() => _nextFollowUpDate = targetDate);
+      },
+    );
   }
 
   Color _statusColor(String? s) {
@@ -397,29 +423,17 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                           style: const TextStyle(color: AppColors.muted, fontSize: 13),
                         ),
                           const SizedBox(height: AppSpacing.md),
-
-                          const Text("Diagnosis", style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          TextField(
-                            key: const Key("diagnosis-input"),
-                            controller: _diagController,
-                            decoration: InputDecoration(
-                              hintText: "e.g. Viral fever, Hypertension",
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                              filled: true,
-                              fillColor: AppColors.surface,
-                            ),
+                          const Text(
+                            "Follow-up Instructions & Clinical Notes",
+                            style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600),
                           ),
-
-                          const SizedBox(height: AppSpacing.md),
-                          const Text("Prescription (Text / Notes)", style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
                           TextField(
-                            key: const Key("prescription-input"),
-                            controller: _presController,
+                            key: const Key("followup-input"),
+                            controller: _followUpController,
                             maxLines: 3,
                             decoration: InputDecoration(
-                              hintText: "e.g. Paracetamol 500mg x 3 days\nVitamin C x 5 days",
+                              hintText: "Enter follow-up instructions, advice, dietary rules, or clinical notes…",
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                               filled: true,
                               fillColor: AppColors.surface,
@@ -571,16 +585,90 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                           ],
 
                           const SizedBox(height: AppSpacing.md),
-                          const Text("Follow-up instructions", style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          TextField(
-                            key: const Key("followup-input"),
-                            controller: _followUpController,
-                            decoration: InputDecoration(
-                              hintText: "Rest, drink fluids, review after 5 days…",
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                              filled: true,
-                              fillColor: AppColors.surface,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                "Next Follow-up Date",
+                                style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w600),
+                              ),
+                              if (_nextFollowUpDate != null)
+                                InkWell(
+                                  onTap: () => setState(() => _nextFollowUpDate = null),
+                                  child: const Text(
+                                    "Clear Date",
+                                    style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+
+                          InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _nextFollowUpDate ?? DateTime.now().add(const Duration(days: 7)),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (picked != null) {
+                                setState(() => _nextFollowUpDate = picked);
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: _nextFollowUpDate != null ? AppColors.brand.withOpacity(0.06) : AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(
+                                  color: _nextFollowUpDate != null ? AppColors.brand : AppColors.border,
+                                  width: _nextFollowUpDate != null ? 1.5 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_month,
+                                    color: _nextFollowUpDate != null ? AppColors.brand : AppColors.muted,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _nextFollowUpDate != null
+                                          ? DateFormat('EEEE, d MMMM yyyy').format(_nextFollowUpDate!)
+                                          : "Select follow-up date (tap to choose)",
+                                      style: TextStyle(
+                                        color: _nextFollowUpDate != null ? AppColors.onSurface : AppColors.muted,
+                                        fontWeight: _nextFollowUpDate != null ? FontWeight.w700 : FontWeight.normal,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_drop_down,
+                                    color: _nextFollowUpDate != null ? AppColors.brand : AppColors.muted,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildQuickDateChip("+3 Days", 3),
+                                const SizedBox(width: 6),
+                                _buildQuickDateChip("+1 Week", 7),
+                                const SizedBox(width: 6),
+                                _buildQuickDateChip("+2 Weeks", 14),
+                                const SizedBox(width: 6),
+                                _buildQuickDateChip("+1 Month", 30),
+                              ],
                             ),
                           ),
 
@@ -663,6 +751,7 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                         else
                           ...state.consultations.map((c) {
                             final followUp = c.followUpInstructions;
+                            final followUpDate = c.followUpDate;
                             final photoUrl = c.prescriptionImageUrl;
                             return Container(
                               margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -730,10 +819,36 @@ class _DoctorPatientDetailScreenState extends ConsumerState<DoctorPatientDetailS
                                       ),
                                     ),
                                   ],
+                                  if (followUpDate != null && followUpDate.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0F766E).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF0F766E).withOpacity(0.25)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.event, color: Color(0xFF0F766E), size: 14),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            "Next Follow-up Date: $followUpDate",
+                                            style: const TextStyle(
+                                              color: Color(0xFF0F766E),
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                   if (followUp != null && followUp.isNotEmpty) ...[
                                     const SizedBox(height: 6),
                                     Text(
-                                      "Follow-up: $followUp",
+                                      "Follow-up Instructions: $followUp",
                                       style: const TextStyle(color: AppColors.brand, fontStyle: FontStyle.italic),
                                     ),
                                   ],
