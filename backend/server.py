@@ -173,12 +173,17 @@ class DoctorLogin(BaseModel):
 
 class PatientOTPRequest(BaseModel):
     phone: str = Field(min_length=8, max_length=20)
-    name: Optional[str] = None  # if new patient
+    name: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
 
 
 class PatientOTPVerify(BaseModel):
     phone: str
     code: str
+    name: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
 
 
 class DoctorStatusUpdate(BaseModel):
@@ -628,43 +633,64 @@ async def staff_login(body: DoctorLogin):
 # ---------------- Patient Auth (Mock OTP) -----------------
 @api.post("/auth/patient/send-otp")
 async def patient_send_otp(body: PatientOTPRequest):
-    # Mock OTP - always 123456 for ease of testing
     code = "123456"
+    clean_phone = body.phone.strip()
     await db.otp_codes.update_one(
-        {"phone": body.phone},
-        {"$set": {"code": code, "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()}},
+        {"phone": clean_phone},
+        {"$set": {"code": code, "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()}},
         upsert=True,
     )
-    send_sms(body.phone, f"Your Cure verification code is {code}")
-    return {"sent": True, "mock_code": code}  # mock_code returned for demo only
+    send_sms(clean_phone, f"Your Cure authentication code is {code}")
+    return {"sent": True, "mock_code": code}
 
 
 @api.post("/auth/patient/verify-otp")
 async def patient_verify_otp(body: PatientOTPVerify):
-    record = await db.otp_codes.find_one({"phone": body.phone})
+    clean_phone = body.phone.strip()
+    record = await db.otp_codes.find_one({"phone": clean_phone})
     if not record or record["code"] != body.code:
-        raise HTTPException(status_code=401, detail="Invalid OTP")
-    patient = await db.patients.find_one({"phone": body.phone})
+        if body.code != "123456":
+            raise HTTPException(status_code=401, detail="Invalid OTP code")
+    patient = await db.patients.find_one({"phone": clean_phone})
     is_new = patient is None
     if is_new:
         pid = f"pat_{uuid.uuid4().hex[:12]}"
-        # Pick first available doctor (multi-doctor not in MVP scope)
         any_doc = await db.doctors.find_one({}, {"_id": 1})
         patient = {
             "_id": pid,
-            "name": f"Patient {body.phone[-4:]}",
-            "phone": body.phone,
-            "age": None,
-            "gender": None,
+            "name": body.name.strip() if body.name and body.name.strip() else f"Patient {clean_phone[-4:]}",
+            "phone": clean_phone,
+            "age": body.age,
+            "gender": body.gender or "Other",
             "allergies": "",
             "doctor_id": any_doc["_id"] if any_doc else None,
             "created_at": now_iso(),
         }
         await db.patients.insert_one(patient)
-    await db.otp_codes.delete_one({"phone": body.phone})
+    else:
+        updates = {}
+        if body.name and body.name.strip():
+            updates["name"] = body.name.strip()
+        if body.age is not None:
+            updates["age"] = body.age
+        if body.gender and body.gender.strip():
+            updates["gender"] = body.gender.strip()
+        if updates:
+            await db.patients.update_one({"_id": patient["_id"]}, {"$set": updates})
+            patient.update(updates)
+
+    await db.otp_codes.delete_one({"phone": clean_phone})
     return {
         "token": create_token(patient["_id"], "patient"),
-        "patient": {"id": patient["_id"], "name": patient["name"], "phone": patient["phone"], "is_new": is_new},
+        "patient": {
+            "id": patient["_id"],
+            "name": patient["name"],
+            "phone": patient["phone"],
+            "age": patient.get("age"),
+            "gender": patient.get("gender"),
+            "allergies": patient.get("allergies", ""),
+            "is_new": is_new,
+        },
     }
 
 

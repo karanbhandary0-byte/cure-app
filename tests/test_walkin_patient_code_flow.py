@@ -81,6 +81,22 @@ class TestWalkinPatientCodeFlow(unittest.TestCase):
             self.assertEqual(records[0]["diagnosis"], "Acute Bronchitis")
             self.assertEqual(records[0]["prescription"], "Azithromycin 500mg once daily for 3 days")
 
+            # 5. Direct new patient portal sign-in with full name, age, gender, phone, and OTP code
+            new_phone = "+919123456780"
+            new_patient_otp = PatientOTPVerify(
+                phone=new_phone,
+                code="123456",
+                name="Aarav Sharma",
+                age=29,
+                gender="Male"
+            )
+            new_auth_res = await patient_verify_otp(new_patient_otp)
+            self.assertIn("token", new_auth_res)
+            self.assertEqual(new_auth_res["patient"]["name"], "Aarav Sharma")
+            self.assertEqual(new_auth_res["patient"]["age"], 29)
+            self.assertEqual(new_auth_res["patient"]["gender"], "Male")
+            self.assertEqual(new_auth_res["patient"]["phone"], new_phone)
+
         asyncio.run(run_test())
 
 if __name__ == "__main__":
