@@ -145,25 +145,91 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
     );
   }
 
-  Widget _buildDashboardTodayCard(CustomSlotSchedule plan, String todayFormatted) {
+  Widget _buildDashboardTodayCard(CustomSlotSchedule plan, String todayFormatted, Doctor doctor) {
+    final isSessionActive = doctor.isSessionActive;
+    final isDelayed = (doctor.delayMinutes ?? 0) > 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: isSessionActive ? const Color(0xFF0F766E) : AppColors.border,
+          width: isSessionActive ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          if (isSessionActive)
+            BoxShadow(
+              color: const Color(0xFF0F766E).withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Date: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.onSurface)),
-              Text(todayFormatted, style: const TextStyle(fontSize: 13, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  const Text("Date: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.onSurface)),
+                  Text(todayFormatted, style: const TextStyle(fontSize: 13, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                ],
+              ),
+              if (isSessionActive)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.circle, size: 8, color: Color(0xFF16A34A)),
+                      SizedBox(width: 4),
+                      Text("SESSION LIVE", style: TextStyle(color: Color(0xFF15803D), fontSize: 10, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text("NOT STARTED", style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.w700)),
+                ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
+
+          if (isDelayed)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.access_time_filled, color: Color(0xFFD97706), size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Postponed by +${doctor.delayMinutes} mins · Patients notified",
+                    style: const TextStyle(color: Color(0xFF92400E), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+
           Row(
             children: [
               const Text("From: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.onSurface)),
@@ -191,6 +257,104 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
               Text("${plan.totalSlots}", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
             ],
           ),
+          const SizedBox(height: AppSpacing.md),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const SizedBox(height: AppSpacing.sm),
+
+          // START SESSION / LIVE SESSION CONTROLS
+          if (!isSessionActive) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                key: const Key("start-session-button"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F766E),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  final ok = await ref.read(doctorDashboardProvider.notifier).startSession();
+                  if (ok && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("✓ Consultation session started! Booked patients notified of your arrival."),
+                        backgroundColor: Color(0xFF15803D),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.play_circle_fill, size: 20),
+                label: const Text(
+                  "Start Session (Doctor Arrived)",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Center(
+              child: Text(
+                "Notifies all booked patients that you've arrived so they come on time.",
+                style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key("end-session-button"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      side: const BorderSide(color: Color(0xFFF87171)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onPressed: () async {
+                      final ok = await ref.read(doctorDashboardProvider.notifier).endSession();
+                      if (ok && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("✓ Session ended."),
+                            backgroundColor: Color(0xFF475569),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.stop_circle_outlined, size: 18),
+                    label: const Text("End Session", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    key: const Key("postpone-session-btn"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD97706),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      elevation: 0,
+                    ),
+                    onPressed: () => _showPostponeModal(plan.totalSlots),
+                    icon: const Icon(Icons.access_time, size: 18),
+                    label: const Text("Postpone", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Center(
+              child: Text(
+                "🟢 Session active. Patients are tracking their estimated consultation times.",
+                style: TextStyle(fontSize: 11, color: Color(0xFF15803D), fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -460,7 +624,7 @@ class _DoctorDashboardScreenState extends ConsumerState<DoctorDashboardScreen> {
                           }
 
                           return Column(
-                            children: todaySchedules.map((plan) => _buildDashboardTodayCard(plan, todayFormatted)).toList(),
+                            children: todaySchedules.map((plan) => _buildDashboardTodayCard(plan, todayFormatted, doctor)).toList(),
                           );
                         },
                       ),
@@ -1564,7 +1728,16 @@ class _PostponeModalState extends ConsumerState<_PostponeModal> {
 
   void _apply() async {
     await ref.read(doctorDashboardProvider.notifier).postpone(shift, scope);
-    if (mounted) Navigator.pop(context);
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("✓ Schedule postponed by ${shift < 60 ? '$shift min' : '${shift ~/ 60}h${shift % 60 != 0 ? ' ${shift % 60}m' : ''}'} · All patients notified!"),
+          backgroundColor: const Color(0xFFD97706),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override

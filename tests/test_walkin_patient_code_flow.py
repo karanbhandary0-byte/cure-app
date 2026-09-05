@@ -10,7 +10,8 @@ sys.path.insert(0, str(backend_dir))
 from server import (
     seed_demo_data, assign_walkin_slot, patient_verify_otp,
     patient_records, doctor_add_consultation,
-    WalkinSlotAssign, PatientOTPVerify, ConsultationNoteCreate
+    start_doctor_session, end_doctor_session, postpone_schedule,
+    WalkinSlotAssign, PatientOTPVerify, ConsultationNoteCreate, PostponeRequest
 )
 
 class TestWalkinPatientCodeFlow(unittest.TestCase):
@@ -96,6 +97,22 @@ class TestWalkinPatientCodeFlow(unittest.TestCase):
             self.assertEqual(new_auth_res["patient"]["age"], 29)
             self.assertEqual(new_auth_res["patient"]["gender"], "Male")
             self.assertEqual(new_auth_res["patient"]["phone"], new_phone)
+
+            # 6. Doctor starts consultation session (patients notified)
+            session_start_res = await start_doctor_session(doctor=doctor_user)
+            self.assertTrue(session_start_res["ok"])
+            self.assertTrue(session_start_res["session_active"])
+
+            # 7. Doctor postpones schedule by 30 minutes (patients notified with updated time)
+            postpone_req = PostponeRequest(shift_minutes=30, apply_to="today")
+            postpone_res = await postpone_schedule(postpone_req, doctor=doctor_user)
+            self.assertTrue(postpone_res["ok"])
+            self.assertEqual(postpone_res["delay_minutes"], 30)
+
+            # 8. Doctor ends session
+            session_end_res = await end_doctor_session(doctor=doctor_user)
+            self.assertTrue(session_end_res["ok"])
+            self.assertFalse(session_end_res["session_active"])
 
         asyncio.run(run_test())
 

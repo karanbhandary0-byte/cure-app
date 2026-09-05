@@ -101,8 +101,24 @@ class ScheduleNotifier extends StateNotifier<List<CustomSlotSchedule>> {
     ];
   }
 
-  void deleteSchedule(String id) {
-    state = state.where((s) => s.id != id).toList();
+  void postponeSchedules(int shiftMinutes, String scope) {
+    state = state.map((s) {
+      final shouldApply = scope == "all_upcoming" || s.isToday;
+      if (shouldApply) {
+        int fromTotal = s.fromTime.hour * 60 + s.fromTime.minute + shiftMinutes;
+        int toTotal = s.toTime.hour * 60 + s.toTime.minute + shiftMinutes;
+        return CustomSlotSchedule(
+          id: s.id,
+          doctorId: s.doctorId,
+          date: s.date,
+          fromTime: TimeOfDay(hour: (fromTotal ~/ 60) % 24, minute: fromTotal % 60),
+          toTime: TimeOfDay(hour: (toTotal ~/ 60) % 24, minute: toTotal % 60),
+          durationMinutes: s.durationMinutes,
+          totalSlots: s.totalSlots,
+        );
+      }
+      return s;
+    }).toList();
   }
 
   List<CustomSlotSchedule> get todaySchedules {
@@ -222,6 +238,34 @@ class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientSch
     );
 
     state = [...state, newPatient];
+  }
+
+  void postponeBookedPatients(int shiftMinutes, String scope) {
+    state = state.map((p) {
+      final isToday = p.date.year == DateTime.now().year &&
+          p.date.month == DateTime.now().month &&
+          p.date.day == DateTime.now().day;
+      if (scope == "all_upcoming" || isToday) {
+        try {
+          final parsed = DateFormat('h:mm a').parse(p.slotTime);
+          final updated = parsed.add(Duration(minutes: shiftMinutes));
+          return BookedPatientScheduleItem(
+            id: p.id,
+            slotNumber: p.slotNumber,
+            name: p.name,
+            phone: p.phone,
+            age: p.age,
+            gender: p.gender,
+            date: p.date,
+            slotTime: DateFormat('h:mm a').format(updated),
+            isWalkIn: p.isWalkIn,
+            status: 'delayed',
+            loginCode: p.loginCode,
+          );
+        } catch (_) {}
+      }
+      return p;
+    }).toList();
   }
 }
 

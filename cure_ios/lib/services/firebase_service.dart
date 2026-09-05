@@ -274,6 +274,134 @@ class FirebaseService {
     });
   }
 
+  /// Start Doctor Live Consultation Session & Notify Booked Patients
+  Future<void> startDoctorSession(String doctorId, String doctorName) async {
+    await _db.collection('doctors').doc(doctorId).update({
+      'is_session_active': true,
+      'session_started_at': FieldValue.serverTimestamp(),
+      'status': 'available',
+      'delay_minutes': 0,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+
+    // Mark today's appointments as doctor arrived
+    try {
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final snap = await _db
+          .collection('appointments')
+          .where('doctor_id', isEqualTo: doctorId)
+          .get();
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final dtStr = data['scheduled_at']?.toString() ?? '';
+        if (dtStr.startsWith(todayStr) && data['status'] != 'cancelled' && data['status'] != 'completed') {
+          await doc.reference.update({
+            'doctor_arrived': true,
+            'doctor_session_live': true,
+            'updated_at': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// End Doctor Live Consultation Session
+  Future<void> endDoctorSession(String doctorId) async {
+    await _db.collection('doctors').doc(doctorId).update({
+      'is_session_active': false,
+      'session_ended_at': FieldValue.serverTimestamp(),
+      'status': 'closed',
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+
+    try {
+      final snap = await _db
+          .collection('appointments')
+          .where('doctor_id', isEqualTo: doctorId)
+          .get();
+
+      for (final doc in snap.docs) {
+        await doc.reference.update({
+          'doctor_session_live': false,
+        });
+      }
+    } catch (_) {}
+  }
+
+  /// Postpone Doctor Schedule & Shift Slots/Appointments in Firestore
+  Future<void> postponeDoctorSchedule(String doctorId, int shiftMinutes, String scope) async {
+    await _db.collection('doctors').doc(doctorId).update({
+      'status': 'running_late',
+      'delay_minutes': shiftMinutes,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+
+    try {
+      final snap = await _db
+          .collection('doctor_schedules')
+          .where('doctor_id', isEqualTo: doctorId)
+          .get();
+
+      final now = DateTime.now();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final dateStr = data['date']?.toString() ?? '';
+        final dt = DateTime.tryParse(dateStr);
+        final isToday = dt != null && dt.year == now.year && dt.month == now.month && dt.day == now.day;
+
+        if (scope == "all_upcoming" || isToday) {
+          final fromHour = (data['from_hour'] as num?)?.toInt() ?? 6;
+          final fromMin = (data['from_minute'] as num?)?.toInt() ?? 0;
+          final toHour = (data['to_hour'] as num?)?.toInt() ?? 8;
+          final toMin = (data['to_minute'] as num?)?.toInt() ?? 0;
+
+          int newFromTotal = fromHour * 60 + fromMin + shiftMinutes;
+          int newToTotal = toHour * 60 + toMin + shiftMinutes;
+
+          await doc.reference.update({
+            'from_hour': (newFromTotal ~/ 60) % 24,
+            'from_minute': newFromTotal % 60,
+            'to_hour': (newToTotal ~/ 60) % 24,
+            'to_minute': newToTotal % 60,
+            'delay_minutes': shiftMinutes,
+            'updated_at': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final snap = await _db
+          .collection('appointments')
+          .where('doctor_id', isEqualTo: doctorId)
+          .get();
+
+      final now = DateTime.now();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final dtStr = data['scheduled_at']?.toString() ?? '';
+        final dt = DateTime.tryParse(dtStr);
+        final isToday = dt != null && dt.year == now.year && dt.month == now.month && dt.day == now.day;
+
+        if (dt != null && (scope == "all_upcoming" || isToday)) {
+          if (data['status'] != 'cancelled' && data['status'] != 'completed') {
+            final newDt = dt.add(Duration(minutes: shiftMinutes));
+            await doc.reference.update({
+              'scheduled_at': newDt.toIso8601String(),
+              'estimated_start_time': newDt.toIso8601String(),
+              'status': 'delayed',
+              'delay_minutes': shiftMinutes,
+              'original_time': data['original_time'] ?? dtStr,
+              'updated_at': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   /// Update Doctor Clinic Location & Address
   Future<void> updateDoctorLocation(String doctorId, String clinicName, String clinicAddress) async {
     await _db.collection('doctors').doc(doctorId).update({

@@ -246,17 +246,60 @@ class DoctorDashboardNotifier extends StateNotifier<DoctorDashboardState> {
     }
   }
 
+  Future<bool> startSession() async {
+    final doc = state.doctor;
+    final docId = doc?.id;
+    if (docId != null && docId.isNotEmpty) {
+      try {
+        await _firebase.startDoctorSession(docId, doc?.name ?? 'Doctor');
+      } catch (_) {}
+    }
+    try {
+      await _api.post("/doctor/session/start");
+    } catch (_) {}
+    await load();
+    return true;
+  }
+
+  Future<bool> endSession() async {
+    final docId = state.doctor?.id;
+    if (docId != null && docId.isNotEmpty) {
+      try {
+        await _firebase.endDoctorSession(docId);
+      } catch (_) {}
+    }
+    try {
+      await _api.post("/doctor/session/end");
+    } catch (_) {}
+    await load();
+    return true;
+  }
+
   Future<bool> postpone(int shiftMinutes, String scope) async {
+    // 1. Shift local memory schedules and booked patients
+    try {
+      _ref.read(scheduleProvider.notifier).postponeSchedules(shiftMinutes, scope);
+      _ref.read(bookedSchedulePatientsProvider.notifier).postponeBookedPatients(shiftMinutes, scope);
+    } catch (_) {}
+
+    // 2. Shift Firestore real-time data
+    final docId = state.doctor?.id;
+    if (docId != null && docId.isNotEmpty) {
+      try {
+        await _firebase.postponeDoctorSchedule(docId, shiftMinutes, scope);
+      } catch (_) {}
+    }
+
+    // 3. Shift REST backend data & dispatch SMS
     try {
       await _api.post("/doctor/postpone", body: {
         "shift_minutes": shiftMinutes,
         "apply_to": scope,
       });
-      await load();
-      return true;
-    } catch (e) {
-      return false;
-    }
+    } catch (_) {}
+
+    await load();
+    return true;
   }
 }
 

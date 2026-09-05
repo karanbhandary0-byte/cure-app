@@ -27,6 +27,10 @@ class Doctor {
   final String? availableDays;
   final String? workingHours;
 
+  // Live Session Status
+  final bool isSessionActive;
+  final String? sessionStartedAt;
+
   Doctor({
     required this.id,
     required this.name,
@@ -51,6 +55,8 @@ class Doctor {
     this.consultationFee,
     this.availableDays,
     this.workingHours,
+    this.isSessionActive = false,
+    this.sessionStartedAt,
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
@@ -90,6 +96,8 @@ class Doctor {
           : int.tryParse(json['consultation_fee']?.toString() ?? '800'),
       availableDays: json['available_days']?.toString(),
       workingHours: json['working_hours']?.toString(),
+      isSessionActive: json['is_session_active'] == true || json['is_session_active'] == 'true',
+      sessionStartedAt: json['session_started_at']?.toString(),
     );
   }
 
@@ -119,6 +127,8 @@ class Doctor {
       'consultation_fee': consultationFee,
       'available_days': availableDays,
       'working_hours': workingHours,
+      'is_session_active': isSessionActive,
+      'session_started_at': sessionStartedAt,
     };
   }
 }

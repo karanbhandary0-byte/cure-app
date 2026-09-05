@@ -1292,7 +1292,7 @@ async def postpone_schedule(body: PostponeRequest, doctor: dict = Depends(requir
     if body.apply_to == "today":
         appt_query = {
             "doctor_id": doctor["id"],
-            "status": {"$in": ["scheduled", "delayed"]},
+            "status": {"$in": ["scheduled", "delayed", "booked"]},
             "scheduled_at": {"$gte": today_start.isoformat(), "$lt": today_end.isoformat()},
         }
         slot_query = {
@@ -1302,11 +1302,12 @@ async def postpone_schedule(body: PostponeRequest, doctor: dict = Depends(requir
     else:
         appt_query = {
             "doctor_id": doctor["id"],
-            "status": {"$in": ["scheduled", "delayed"]},
+            "status": {"$in": ["scheduled", "delayed", "booked"]},
             "scheduled_at": {"$gte": now_iso()},
         }
         slot_query = {"doctor_id": doctor["id"], "scheduled_at": {"$gte": now_iso()}}
 
+    doc_name = doctor["name"] if doctor["name"].startswith("Dr.") else f"Dr. {doctor['name']}"
     shifted = 0
     async for apt in db.appointments.find(appt_query):
         new_time = (datetime.fromisoformat(apt["scheduled_at"]) + delta).isoformat()
@@ -1315,8 +1316,8 @@ async def postpone_schedule(body: PostponeRequest, doctor: dict = Depends(requir
             {"$set": {"scheduled_at": new_time, "status": "delayed", "original_time": apt.get("original_time", apt["scheduled_at"])}},
         )
         pat = await db.patients.find_one({"_id": apt["patient_id"]})
-        if pat:
-            send_sms(pat["phone"], f"Your appointment with {doctor['name']} has been postponed by {body.shift_minutes} mins. New time: {new_time}.")
+        if pat and pat.get("phone"):
+            send_sms(pat["phone"], f"Your appointment with {doc_name} has been postponed by {body.shift_minutes} mins. New estimated time: {new_time}.")
         shifted += 1
 
     # Shift custom slots
@@ -1332,6 +1333,56 @@ async def postpone_schedule(body: PostponeRequest, doctor: dict = Depends(requir
         {"$set": {"status": "running_late", "delay_minutes": body.shift_minutes, "status_updated_at": now_iso()}},
     )
     return {"ok": True, "shifted_appointments": shifted, "shifted_custom_slots": shifted_slots, "delay_minutes": body.shift_minutes}
+
+
+@api.post("/doctor/session/start")
+async def start_doctor_session(doctor: dict = Depends(require_doctor)):
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start + timedelta(days=1)
+    doc_name = doctor["name"] if doctor["name"].startswith("Dr.") else f"Dr. {doctor['name']}"
+
+    # Update doctor status to active session
+    await db.doctors.update_one(
+        {"_id": doctor["id"]},
+        {"$set": {
+            "status": "available",
+            "is_session_active": True,
+            "session_started_at": now_iso(),
+            "status_updated_at": now_iso(),
+        }},
+    )
+
+    # Notify all patients with appointments today
+    appt_query = {
+        "doctor_id": doctor["id"],
+        "status": {"$in": ["scheduled", "delayed", "booked"]},
+        "scheduled_at": {"$gte": today_start.isoformat(), "$lt": today_end.isoformat()},
+    }
+    notified = 0
+    async for apt in db.appointments.find(appt_query):
+        pat = await db.patients.find_one({"_id": apt["patient_id"]})
+        if pat and pat.get("phone"):
+            send_sms(
+                pat["phone"],
+                f"{doc_name} has arrived at the clinic and started consultation sessions! Please be on time for your slot."
+            )
+            notified += 1
+
+    return {"ok": True, "session_active": True, "notified_patients": notified}
+
+
+@api.post("/doctor/session/end")
+async def end_doctor_session(doctor: dict = Depends(require_doctor)):
+    await db.doctors.update_one(
+        {"_id": doctor["id"]},
+        {"$set": {
+            "status": "closed",
+            "is_session_active": False,
+            "session_ended_at": now_iso(),
+            "status_updated_at": now_iso(),
+        }},
+    )
+    return {"ok": True, "session_active": False}
 
 
 # ---------------- Appointments (Doctor) -----------------

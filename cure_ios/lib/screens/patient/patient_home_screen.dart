@@ -1049,6 +1049,82 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                               ),
                             ),
                           ],
+
+                          // 1. DOCTOR ARRIVAL / LIVE SESSION BANNER
+                          if (next.doctor?.isSessionActive == true || (next.doctor?.status == 'available' && next.status != 'delayed'))
+                            Container(
+                              margin: const EdgeInsets.only(top: AppSpacing.md),
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(color: const Color(0xFF86EFAC)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.notifications_active, color: Color(0xFF15803D), size: 22),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          "🟢 Doctor Has Arrived · Session is LIVE",
+                                          style: TextStyle(
+                                            color: Color(0xFF14532D),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          "Dr. is present at the clinic and consulting patients. Please be on time for Token #${next.tokenNumber}!",
+                                          style: const TextStyle(color: Color(0xFF166534), fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          // 2. SCHEDULE POSTPONED / DELAYED BANNER
+                          if (next.status == 'delayed' || (next.doctor?.delayMinutes != null && next.doctor!.delayMinutes! > 0))
+                            Container(
+                              margin: const EdgeInsets.only(top: AppSpacing.md),
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                border: Border.all(color: const Color(0xFFFDE68A)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.access_time_filled, color: Color(0xFFD97706), size: 22),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "⏱️ Schedule Postponed (+${next.doctor?.delayMinutes ?? 15} mins)",
+                                          style: const TextStyle(
+                                            color: Color(0xFF92400E),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          "New estimated time is ${DateFormat('h:mm a').format(next.scheduledAt)}. Please arrive accordingly to minimize your waiting time.",
+                                          style: const TextStyle(color: Color(0xFFB45309), fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     ),
