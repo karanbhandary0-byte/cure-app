@@ -36,6 +36,8 @@ jobs:
         run: |
           flutter pub get
           flutter build web --release --base-href="/cure-app/" --pwa-strategy=none
+          touch build/web/.nojekyll
+          cp build/web/index.html build/web/404.html
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
