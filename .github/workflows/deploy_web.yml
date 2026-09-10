@@ -41,19 +41,23 @@ jobs:
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
+        continue-on-error: true
+        with:
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        continue-on-error: true
         with:
           path: cure_ios/build/web
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
 
-      - name: Deploy to gh-pages branch (Fallback)
+      - name: Deploy to gh-pages branch (Direct Branch Host)
         uses: peaceiris/actions-gh-pages@v4
-        if: always()
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./cure_ios/build/web
