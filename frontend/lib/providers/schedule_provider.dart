@@ -101,6 +101,10 @@ class ScheduleNotifier extends StateNotifier<List<CustomSlotSchedule>> {
     ];
   }
 
+  void deleteSchedule(String id) {
+    state = state.where((s) => s.id != id).toList();
+  }
+
   void postponeSchedules(int shiftMinutes, String scope) {
     state = state.map((s) {
       final shouldApply = scope == "all_upcoming" || s.isToday;
