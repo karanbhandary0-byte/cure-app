@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Docway - UI/UX Interactive Design Prototype (Original Brand Theme)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* ORIGINAL BRAND COLORS */
+      --brand-primary: #0073E6;
+      --brand-secondary: #0059B2;
+      --brand-tertiary: #E6F0FD;
+      --brand-dark: #003D80;
+      --bg-main: #0F172A;
+      --bg-surface: #1E293B;
+      --bg-card: #FFFFFF;
+      --bg-subtle: #F4F7FB;
+      --text-main: #111827;
+      --text-muted: #6B7280;
+      --text-light: #94A3B8;
+      --border: #E5E7EB;
+      --border-focus: #0073E6;
+      --success: #10B981;
+      --success-bg: #D1FAE5;
+      --warning: #F59E0B;
+      --warning-bg: #FEF3C7;
+      --danger: #EF4444;
+      --danger-bg: #FEE2E2;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 25px -3px rgba(0, 115, 230, 0.15);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background: var(--bg-main);
+      color: #F8FAFC;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Studio Nav */
+    .studio-header {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: white;
+      font-size: 18px;
+      box-shadow: 0 0 15px rgba(0, 115, 230, 0.5);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-badge {
+      background: rgba(0, 115, 230, 0.2);
+      color: #60A5FA;
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* Portal Switcher Tabs */
+    .portal-tabs {
+      display: flex;
+      background: #0F172A;
+      padding: 4px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .portal-btn {
+      background: transparent;
+      border: none;
+      color: #94A3B8;
+      padding: 8px 18px;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .portal-btn:hover {
+      color: #F8FAFC;
+    }
+
+    .portal-btn.active {
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+      color: #FFFFFF;
+      box-shadow: 0 2px 10px rgba(0, 115, 230, 0.4);
+    }
+
+    .view-mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #94A3B8;
+      font-size: 13px;
+    }
+
+    /* Studio Main Canvas */
+    .studio-canvas {
+      flex: 1;
+      padding: 32px 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+    }
+
+    /* Device Mockup Shell */
+    .device-frame {
+      width: 420px;
+      min-height: 840px;
+      background: #FFFFFF;
+      border-radius: 44px;
+      border: 10px solid #1E293B;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      color: var(--text-main);
+      position: relative;
+    }
+
+    .device-notch {
+      width: 140px;
+      height: 24px;
+      background: #1E293B;
+      margin: 0 auto;
+      border-bottom-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      position: relative;
+      z-index: 50;
+    }
+
+    .screen-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: var(--bg-subtle);
+      display: none;
+    }
+
+    .screen-content.active {
+      display: block;
+      animation: fadeIn 0.25s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Common App UI Elements */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-top: 4px;
+    }
+
+    .app-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .status-pill.online {
+      background: #ECFDF5;
+      color: #059669;
+      border: 1px solid #A7F3D0;
+    }
+
+    .status-pill.delayed {
+      background: #FFFBEB;
+      color: #D97706;
+      border: 1px solid #FDE68A;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-dot.pulse {
+      animation: pulseAnim 1.5s infinite;
+    }
+
+    @keyframes pulseAnim {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .card {
+      background: #FFFFFF;
+      border-radius: var(--radius-md);
+      padding: 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 14px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .card-hero {
+      background: linear-gradient(135deg, var(--brand-secondary), var(--brand-primary));
+      color: white;
+      border: none;
+      box-shadow: 0 10px 20px -5px rgba(0, 115, 230, 0.35);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--brand-primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(0, 115, 230, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: var(--brand-secondary);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: white;
+      color: #334155;
+      border: 1px solid #CBD5E1;
+    }
+
+    .btn-outline:hover {
+      background: #F1F5F9;
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    /* Queue Token Chips */
+    .token-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      background: #F1F5F9;
+      color: #111827;
+      border: 1px solid #E5E7EB;
+    }
+
+    .token-badge.active {
+      background: var(--brand-tertiary);
+      color: var(--brand-primary);
+      border-color: #BFDBFE;
+    }
+
+    .token-badge.walkin {
+      background: #FDF4FF;
+      color: #A21CAF;
+      border-color: #F0ABFC;
+    }
+
+    /* Prescription Dosage Pills */
+    .dosage-pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0;
+    }
+
+    .dosage-pill {
+      background: #F1F5F9;
+      color: #334155;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+      user-select: none;
+      transition: all 0.15s;
+    }
+
+    .dosage-pill:hover {
+      background: #E2E8F0;
+    }
+
+    .dosage-pill.selected {
+      background: var(--brand-tertiary);
+      color: var(--brand-secondary);
+      border-color: var(--brand-primary);
+    }
+
+    /* Uber-style Progress Tracker */
+    .tracker-stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      margin: 20px 8px;
+    }
+
+    .tracker-stepper::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      right: 10%;
+      height: 3px;
+      background: #E5E7EB;
+      z-index: 1;
+      transform: translateY(-50%);
+    }
+
+    .tracker-step {
+      position: relative;
+      z-index: 2;
+      background: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      border: 2px solid #CBD5E1;
+      color: #64748B;
+    }
+
+    .tracker-step.done {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
+
+    .tracker-step.current {
+      background: var(--brand-primary);
+      border-color: var(--brand-primary);
+      color: white;
+      box-shadow: 0 0 0 4px rgba(0, 115, 230, 0.2);
+    }
+
+    /* Modal / QR Overlay */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 90;
+      display: none;
+      align-items: flex-end;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-sheet {
+      background: white;
+      width: 100%;
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      padding: 24px 20px;
+      animation: slideUp 0.25s ease forwards;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .qr-box {
+      width: 160px;
+      height: 160px;
+      margin: 12px auto;
+      background: white;
+      padding: 12px;
+      border-radius: 16px;
+      border: 2px dashed var(--brand-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Right UX Panel */
+    .ux-notes-panel {
+      max-width: 480px;
+      background: var(--bg-surface);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      color: #CBD5E1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Studio Header -->
+  <header class="studio-header">
+    <div class="brand-group">
+      <div class="brand-logo">D</div>
+      <div>
+        <div class="brand-title">Docway UI & UX Studio</div>
+      </div>
+      <span class="brand-badge">Brand Blue Theme (#0073E6)</span>
+    </div>
+
+    <!-- Tab Bar to Switch Portals -->
+    <div class="portal-tabs">
+      <button class="portal-btn active" onclick="switchPortal('doctor')">🩺 Doctor Portal</button>
+      <button class="portal-btn" onclick="switchPortal('patient')">👥 Patient Portal</button>
+      <button class="portal-btn" onclick="switchPortal('staff')">🏥 Clinical Staff</button>
+      <button class="portal-btn" onclick="switchPortal('subscription')">💳 Doctor Subscription (₹499)</button>
+    </div>
+
+    <div class="view-mode-toggle">
+      <span>Theme: <b>Original Blue</b></span>
+    </div>
+  </header>
+
+  <!-- Studio Main Work Area -->
+  <main class="studio-canvas">
+
+    <!-- Mobile Device Mockup -->
+    <div class="device-frame" id="deviceFrame">
+      <div class="device-notch"></div>
+
+      <!-- ============================================== -->
+      <!-- 1. DOCTOR PORTAL SCREEN (MATCHING USER SCREENSHOT) -->
+      <!-- ============================================== -->
+      <div class="screen-content active" id="screen-doctor" style="padding: 16px 18px 24px 18px; background: #FAFAFB;">
+        
+        <!-- Top App Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-top: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 30px; height: 30px; background: #0073E6; border-radius: 8px 8px 14px 8px; display: flex; align-items: center; justify-content: center; color: white;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
+            </div>
+            <span style="font-size: 22px; font-weight: 800; color: #0073E6; letter-spacing: -0.5px;">Docway</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <!-- Notification Bell -->
+            <div style="position: relative; width: 38px; height: 38px; border-radius: 50%; background: #EFF6FF; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0073E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+              </svg>
+              <span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; background: #EF4444; border-radius: 50%;"></span>
+            </div>
+
+            <!-- Doctor Avatar -->
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: #E0E7FF; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+              <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=120&auto=format&fit=crop&q=80" alt="Doctor" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Greeting Header -->
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-size: 13px; color: #475569; font-weight: 600;">Good Morning,</div>
+              <div style="font-size: 24px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; margin-top: 2px;">Dr. Smith</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748B; font-weight: 600; padding-top: 4px;">
+              <span>Fri, 18 Sep 2026</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                <line x1="16" x2="16" y1="2" y2="6"/>
+                <line x1="8" x2="8" y1="2" y2="6"/>
+                <line x1="3" x2="21" y1="10" y2="10"/>
+              </svg>
+            </div>
+          </div>
+          <div style="font-size: 13px; color: #64748B; font-weight: 500; margin-top: 4px;">
+            General Physician <span style="margin: 0 4px;">•</span> Care Clinic
+          </div>
+          <div style="font-size: 12px; color: #0073E6; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            Mangalore
+          </div>
+        </div>
+
+        <!-- HERO NEXT PATIENT CARD -->
+        <div style="background: linear-gradient(180deg, #F0F7FF 0%, #E6F0FD 100%); border-radius: 20px; padding: 18px 16px; border: 1px solid #D0E4FF; margin-bottom: 24px; box-shadow: 0 4px 15px -3px rgba(0, 115, 230, 0.08);">
+          
+          <!-- Top Tag Row -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <span style="background: #0073E6; color: white; font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.5px;">
+              NEXT PATIENT
+            </span>
+            <span style="background: #ECFDF5; color: #059669; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; display: flex; align-items: center; gap: 5px;">
+              <span style="width: 6px; height: 6px; background: #10B981; border-radius: 50%;"></span> Checked In
+            </span>
+          </div>
+
+          <!-- Patient Main Info -->
+          <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;">
+            <div style="width: 54px; height: 54px; border-radius: 50%; background: #DDD6FE; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 2px solid white;">
+              <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80" alt="Priya" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 18px; font-weight: 800; color: #0F172A;">Priya Sharma</div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748B; font-weight: 600; margin-top: 2px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                32 yrs <span style="color: #CBD5E1;">•</span> Female
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748B; font-weight: 600; margin-top: 2px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Follow-up
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #0F172A; font-weight: 800; margin-top: 4px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0073E6" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                10:30 AM
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Action Bar Inside Card -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid rgba(0, 115, 230, 0.15);">
+            <div style="font-size: 12px; font-weight: 700; color: #0073E6; display: flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+              Waiting for you
+            </div>
+
+            <button class="btn btn-primary" style="padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 800; box-shadow: 0 4px 14px rgba(0, 115, 230, 0.35);" onclick="alert('Starting consultation for Priya Sharma (Token #04)...')">
+              Start Consultation <span style="font-size: 15px;">→</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- "Today" Metrics Grid Section -->
+        <div style="margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="font-size: 17px; font-weight: 800; color: #0F172A;">Today</div>
+            <a href="javascript:void(0)" style="font-size: 12px; font-weight: 700; color: #0073E6; text-decoration: none; display: flex; align-items: center; gap: 4px;" onclick="alert('Opening Full Queue View...')">
+              View Full Queue →
+            </a>
+          </div>
+
+          <!-- 4 Stat Metric Cards Grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+            
+            <!-- 1. Appointments (Blue) -->
+            <div style="background: #EFF6FF; border-radius: 16px; padding: 14px 10px; text-align: left; border: 1px solid #DBEAFE;">
+              <div style="width: 28px; height: 28px; border-radius: 8px; background: #DBEAFE; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: #0073E6;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+              </div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1;">18</div>
+              <div style="font-size: 10px; font-weight: 600; color: #64748B; margin-top: 4px;">Appointments</div>
+            </div>
+
+            <!-- 2. Waiting (Amber) -->
+            <div style="background: #FFFBEB; border-radius: 16px; padding: 14px 10px; text-align: left; border: 1px solid #FEF3C7;">
+              <div style="width: 28px; height: 28px; border-radius: 8px; background: #FEF3C7; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: #D97706;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1;">3</div>
+              <div style="font-size: 10px; font-weight: 600; color: #64748B; margin-top: 4px;">Waiting</div>
+            </div>
+
+            <!-- 3. Completed (Green) -->
+            <div style="background: #ECFDF5; border-radius: 16px; padding: 14px 10px; text-align: left; border: 1px solid #D1FAE5;">
+              <div style="width: 28px; height: 28px; border-radius: 8px; background: #D1FAE5; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: #059669;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+              </div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1;">11</div>
+              <div style="font-size: 10px; font-weight: 600; color: #059669; margin-top: 4px;">Completed</div>
+            </div>
+
+            <!-- 4. No Shows (Red) -->
+            <div style="background: #FEF2F2; border-radius: 16px; padding: 14px 10px; text-align: left; border: 1px solid #FEE2E2;">
+              <div style="width: 28px; height: 28px; border-radius: 8px; background: #FEE2E2; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; color: #DC2626;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" x2="19.07" y1="4.93" y2="19.07"/></svg>
+              </div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; line-height: 1;">1</div>
+              <div style="font-size: 10px; font-weight: 600; color: #64748B; margin-top: 4px;">No Shows</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- "Quick Actions" Section (2x2 Grid) -->
+        <div style="margin-bottom: 24px;">
+          <div style="font-size: 17px; font-weight: 800; color: #0F172A; margin-bottom: 12px;">Quick Actions</div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            
+            <!-- 1. View Schedule -->
+            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 14px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer;" onclick="alert('Navigating to Schedule...')">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: #EFF6FF; display: flex; align-items: center; justify-content: center; color: #0073E6;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                </div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 800; color: #0F172A;">View Schedule</div>
+                  <div style="font-size: 10px; color: #64748B; font-weight: 500;">Today's appointments</div>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <!-- 2. Add Walk-in -->
+            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 14px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer;" onclick="openWalkInModal()">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: #ECFDF5; display: flex; align-items: center; justify-content: center; color: #059669;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                </div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 800; color: #0F172A;">Add Walk-in</div>
+                  <div style="font-size: 10px; color: #64748B; font-weight: 500;">Register new patient</div>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <!-- 3. Patients -->
+            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 14px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer;" onclick="alert('Navigating to Patients Directory...')">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: #EFF6FF; display: flex; align-items: center; justify-content: center; color: #0073E6;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 800; color: #0F172A;">Patients</div>
+                  <div style="font-size: 10px; color: #64748B; font-weight: 500;">Search & view history</div>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <!-- 4. Prescriptions -->
+            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 16px; padding: 14px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.04); cursor: pointer;" onclick="alert('Navigating to Prescriptions...')">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: #F5F3FF; display: flex; align-items: center; justify-content: center; color: #7C3AED;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 800; color: #0F172A;">Prescriptions</div>
+                  <div style="font-size: 10px; color: #64748B; font-weight: 500;">View & manage</div>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Bottom Navigation Bar -->
+        <div style="position: sticky; bottom: -16px; margin: 0 -18px -24px -18px; background: white; border-top: 1px solid #E2E8F0; padding: 10px 16px 20px 16px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.03);">
+          
+          <!-- Dashboard (Active) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #0073E6; cursor: pointer;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span style="font-size: 11px; font-weight: 800;">Dashboard</span>
+            <span style="width: 14px; height: 2px; background: #0073E6; border-radius: 999px;"></span>
+          </div>
+
+          <!-- Patients -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #94A3B8; cursor: pointer;" onclick="alert('Tab: Patients')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span style="font-size: 11px; font-weight: 600;">Patients</span>
+          </div>
+
+          <!-- Schedule -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #94A3B8; cursor: pointer;" onclick="alert('Tab: Schedule')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+            <span style="font-size: 11px; font-weight: 600;">Schedule</span>
+          </div>
+
+          <!-- Profile -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; color: #94A3B8; cursor: pointer;" onclick="switchPortal('subscription')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span style="font-size: 11px; font-weight: 600;">Profile</span>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- ============================================== -->
+      <!-- 2. PATIENT PORTAL SCREEN (CLEAN, SIMPLE, ELEGANT) -->
+      <!-- ============================================== -->
+      <div class="screen-content" id="screen-patient" style="padding: 16px 18px 24px 18px; background: #FAFAFB;">
+        
+        <!-- Toggle between Home and Booking in Prototype -->
+        <div style="display: flex; background: #E2E8F0; padding: 3px; border-radius: 12px; margin-bottom: 16px;">
+          <button id="btnPatientHomeTab" style="flex: 1; padding: 6px; border: none; background: white; border-radius: 9px; font-size: 12px; font-weight: 700; color: #0073E6; cursor: pointer;" onclick="showPatientView('home')">🏠 Patient Home</button>
+          <button id="btnPatientBookTab" style="flex: 1; padding: 6px; border: none; background: transparent; border-radius: 9px; font-size: 12px; font-weight: 600; color: #64748B; cursor: pointer;" onclick="showPatientView('book')">📅 Simple 1-Tap Booking</button>
+        </div>
+
+        <!-- VIEW A: PATIENT HOME (CLEAN & STRESS-FREE) -->
+        <div id="patientViewHome">
+          
+          <!-- Top Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 22px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px;">Hello, Jane 👋</div>
+              <div style="font-size: 12px; color: #64748B; font-weight: 500;">How are you feeling today?</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="position: relative; width: 38px; height: 38px; border-radius: 50%; background: #EFF6FF; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0073E6" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span style="position: absolute; top: 9px; right: 9px; width: 6px; height: 6px; background: #EF4444; border-radius: 50%;"></span>
+              </div>
+              <div style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+                <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80" alt="Jane" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Simple Search Bar -->
+          <div style="background: white; border: 1px solid #E2E8F0; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+            <input type="text" placeholder="Search doctor, clinic or specialty..." style="border: none; outline: none; width: 100%; font-size: 13px; color: #0F172A;">
+          </div>
+
+          <!-- ACTIVE APPOINTMENT HERO CARD (ONE-GLANCE) -->
+          <div style="background: linear-gradient(135deg, #0073E6, #0059B2); border-radius: 20px; padding: 18px 16px; color: white; margin-bottom: 20px; box-shadow: 0 8px 20px -4px rgba(0, 115, 230, 0.4);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 11px; font-weight: 700; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Active Appointment</span>
+              <span style="background: rgba(16, 185, 129, 0.25); color: #A7F3D0; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px; display: flex; align-items: center; gap: 4px;">
+                <span class="status-dot pulse" style="background: #10B981;"></span> Live Queue
+              </span>
+            </div>
+
+            <div style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">Token #07</div>
+            <div style="font-size: 16px; font-weight: 700; margin-top: 2px;">Dr. Arun Kumar <span style="font-size: 13px; opacity: 0.85; font-weight: 500;">(Cardiology)</span></div>
+            
+            <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600;">
+              <span>👥 3 Ahead in Queue</span>
+              <span>⏰ Est. Entry: <b>10:45 AM</b></span>
+            </div>
+          </div>
+
+          <!-- 4-Category Specialty Circles -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 15px; font-weight: 800; color: #0F172A; margin-bottom: 12px;">Find by Specialty</div>
+            
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center;">
+              
+              <div style="cursor: pointer;" onclick="showPatientView('book')">
+                <div style="width: 54px; height: 54px; border-radius: 18px; background: #EFF6FF; margin: 0 auto 6px auto; display: flex; align-items: center; justify-content: center; color: #0073E6;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+                </div>
+                <div style="font-size: 12px; font-weight: 700; color: #0F172A;">General</div>
+              </div>
+
+              <div style="cursor: pointer;" onclick="showPatientView('book')">
+                <div style="width: 54px; height: 54px; border-radius: 18px; background: #EFF6FF; margin: 0 auto 6px auto; display: flex; align-items: center; justify-content: center; color: #0073E6;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                </div>
+                <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Cardio</div>
+              </div>
+
+              <div style="cursor: pointer;" onclick="showPatientView('book')">
+                <div style="width: 54px; height: 54px; border-radius: 18px; background: #EFF6FF; margin: 0 auto 6px auto; display: flex; align-items: center; justify-content: center; color: #0073E6;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                </div>
+                <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Child</div>
+              </div>
+
+              <div style="cursor: pointer;" onclick="showPatientView('book')">
+                <div style="width: 54px; height: 54px; border-radius: 18px; background: #EFF6FF; margin: 0 auto 6px auto; display: flex; align-items: center; justify-content: center; color: #0073E6;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div style="font-size: 12px; font-weight: 700; color: #0F172A;">Skin</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Top Doctors Available Today (1-Tap Direct Booking) -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-size: 15px; font-weight: 800; color: #0F172A;">Top Doctors Available Today</div>
+            </div>
+
+            <!-- Doctor Card 1 -->
+            <div style="background: white; border: 1px solid #E2E8F0; border-radius: 18px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+              <div style="display: flex; gap: 12px; align-items: center;">
+                <div style="width: 50px; height: 50px; border-radius: 14px; overflow: hidden; background: #E2E8F0;">
+                  <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=120&auto=format&fit=crop&q=80" alt="Dr Sarah" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 15px; font-weight: 800; color: #0F172A;">Dr. Sarah Smith</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #0F172A;"><span style="color: #F59E0B;">★</span> 4.9</div>
+                  </div>
+                  <div style="font-size: 11px; color: #64748B; font-weight: 500;">General Physician · Care Clinic</div>
+                  <div style="font-size: 11px; color: #059669; font-weight: 700; margin-top: 4px;">● Next Slot: Today, 10:15 AM</div>
+                </div>
+              </div>
+
+              <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #F1F5F9; display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" style="padding: 8px 18px; font-size: 12px; font-weight: 800; border-radius: 999px;" onclick="showPatientView('book')">
+                  Book Appointment →
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- VIEW B: PATIENT 1-TAP BOOKING (CLEAN & NON-SCROLLING) -->
+        <div id="patientViewBook" style="display: none;">
+          
+          <!-- Top Navy Header -->
+          <div style="background: #0A1931; padding: 14px 16px; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center; color: white;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="showPatientView('home')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </div>
+            <div style="font-size: 16px; font-weight: 800; letter-spacing: -0.2px;">Book Appointment</div>
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+            </div>
+          </div>
+
+          <div style="background: white; border: 1px solid #E5E7EB; border-top: none; border-radius: 0 0 16px 16px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+            
+            <!-- Doctor Card -->
+            <div style="background: #FFFFFF; border-radius: 14px; border: 1px solid #E5E7EB; overflow: hidden; margin-bottom: 14px;">
+              <div style="height: 120px; background: #E2E8F0; overflow: hidden;">
+                <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=500&auto=format&fit=crop&q=80" alt="Dr Arun Kumar" style="width: 100%; height: 100%; object-fit: cover; object-position: center top;">
+              </div>
+              <div style="padding: 10px 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-size: 16px; font-weight: 800; color: #0F172A;">Dr. Arun Kumar</div>
+                  <div style="font-size: 11px; font-weight: 700; color: #0F172A;">
+                    <span style="color: #F59E0B;">★</span> 4.9 (120)
+                  </div>
+                </div>
+                <div style="font-size: 11px; color: #64748B; font-weight: 500;">Senior Cardiologist, MD</div>
+                <div style="font-size: 12px; font-weight: 700; color: #0F172A; margin-top: 4px;">Consultation Fee: <b>₹500</b></div>
+              </div>
+            </div>
+
+            <!-- Date Selector Horizontal Strip -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 12px; padding: 4px 2px;">
+              <button style="background: none; border: none; font-size: 16px; color: #64748B; cursor: pointer; padding: 0 4px;">‹</button>
+              
+              <div style="text-align: center; padding: 3px 5px; cursor: pointer;"><div style="font-size: 9px; color: #64748B;">Sun</div><div style="font-size: 12px; font-weight: 700;">25</div></div>
+              <div style="text-align: center; padding: 3px 5px; cursor: pointer;"><div style="font-size: 9px; color: #64748B;">Mon</div><div style="font-size: 12px; font-weight: 700;">26</div></div>
+              <div style="text-align: center; padding: 3px 5px; cursor: pointer;"><div style="font-size: 9px; color: #64748B;">Tue</div><div style="font-size: 12px; font-weight: 700;">27</div></div>
+              
+              <!-- Selected Date (Wed 28) -->
+              <div style="text-align: center; background: #0A1931; color: white; border-radius: 8px; padding: 4px 8px;">
+                <div style="font-size: 9px; opacity: 0.9;">Wed</div>
+                <div style="font-size: 13px; font-weight: 800;">28</div>
+              </div>
+
+              <div style="text-align: center; padding: 3px 5px; cursor: pointer;"><div style="font-size: 9px; color: #64748B;">Thu</div><div style="font-size: 12px; font-weight: 700;">29</div></div>
+              <div style="text-align: center; padding: 3px 5px; cursor: pointer;"><div style="font-size: 9px; color: #64748B;">Fri</div><div style="font-size: 12px; font-weight: 700;">30</div></div>
+              <div style="text-align: center; padding: 3px 5px; cursor: pointer;"><div style="font-size: 9px; color: #64748B;">Sat</div><div style="font-size: 12px; font-weight: 700;">31</div></div>
+
+              <button style="background: none; border: none; font-size: 16px; color: #64748B; cursor: pointer; padding: 0 4px;">›</button>
+            </div>
+
+            <!-- Morning Slots -->
+            <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-bottom: 6px;">Morning</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px;">
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">09:00 AM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">09:15 AM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">09:30 AM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">09:45 AM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">10:00 AM</button>
+              <button class="dosage-pill selected" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">10:15 AM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">10:30 AM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">10:45 AM</button>
+            </div>
+
+            <!-- Afternoon Slots -->
+            <div style="font-size: 13px; font-weight: 800; color: #0F172A; margin-bottom: 6px;">Afternoon</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px;">
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">02:00 PM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">02:15 PM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">02:30 PM</button>
+              <button class="dosage-pill" style="text-align: center; font-size: 10px; padding: 6px 2px;" onclick="togglePill(this)">02:45 PM</button>
+            </div>
+
+            <!-- Bottom Confirm Button -->
+            <button class="btn btn-primary btn-block" style="padding: 14px; font-size: 15px; font-weight: 800; border-radius: 14px;" onclick="alert('Appointment Confirmed with Dr. Arun Kumar for Wed 28, 10:15 AM!\nToken #09 allocated & sent via WhatsApp.')">
+              Confirm
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- ============================================== -->
+      <!-- 3. CLINICAL STAFF SCREEN -->
+      <!-- ============================================== -->
+      <div class="screen-content" id="screen-staff">
+        <div class="app-header">
+          <div>
+            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600;">RECEPTION & LOBBY DESK</div>
+            <div class="app-title">Live Queue Manager</div>
+          </div>
+          <button class="btn btn-primary" style="padding: 6px 12px; font-size: 11px;" onclick="openWalkInModal()">+ Walk-In</button>
+        </div>
+
+        <!-- Lobby Status Tabs -->
+        <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px;">
+          <span class="dosage-pill selected" style="font-size: 11px;">All (18)</span>
+          <span class="dosage-pill" style="font-size: 11px;">In Lobby (4)</span>
+          <span class="dosage-pill" style="font-size: 11px;">Scheduled (12)</span>
+          <span class="dosage-pill" style="font-size: 11px;">Completed (2)</span>
+        </div>
+
+        <!-- Patient Cards with One-Tap Mark Arrived -->
+        <div class="card" style="padding: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <div class="token-badge">#05</div>
+              <div>
+                <div style="font-size: 14px; font-weight: 700;">Emily Davis (32y)</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Slot: 10:00 AM · +91 98765 43202</div>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="padding: 6px 10px; font-size: 10px; background: #059669;" onclick="alert('Emily Davis moved to Ready for Doctor')">
+              ✓ Ready
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <div class="token-badge">#07</div>
+              <div>
+                <div style="font-size: 14px; font-weight: 700;">Jane Doe (28y)</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Slot: 10:30 AM · Scheduled</div>
+              </div>
+            </div>
+            <button class="btn btn-outline" style="padding: 6px 10px; font-size: 10px; border-color: #D97706; color: #D97706;" onclick="this.innerText='✓ In Lobby'; this.style.background='#FEF3C7';">
+              Mark Arrived
+            </button>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ============================================== -->
+      <!-- 4. DOCTOR SUBSCRIPTION & PAYMENT (₹499) -->
+      <!-- ============================================== -->
+      <div class="screen-content" id="screen-subscription">
+        <div class="app-header">
+          <div>
+            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600;">DOCWAY MEMBERSHIP</div>
+            <div class="app-title">Subscription & Billing</div>
+          </div>
+        </div>
+
+        <!-- Fixed Plan Card -->
+        <div class="card card-hero">
+          <div style="display: flex; justify-content: space-between;">
+            <div>
+              <span style="background: rgba(255,255,255,0.2); font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px;">CURRENT PLAN</span>
+              <div style="font-size: 24px; font-weight: 800; margin-top: 6px;">₹499 <span style="font-size: 13px; font-weight: 500; opacity: 0.9;">/ Month</span></div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 10px; opacity: 0.9;">STATUS</div>
+              <div style="font-size: 14px; font-weight: 800; color: #A7F3D0;">● Active</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 12px;">
+            ⏳ <b>24 Days Remaining</b> (Valid until 18 Oct 2026)
+          </div>
+        </div>
+
+        <!-- 1-Tap Pay / Renew Modal Trigger -->
+        <div class="card">
+          <div style="font-size: 14px; font-weight: 800; color: #111827;">Renew Doctor Membership</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin: 4px 0 12px 0;">
+            Keep your clinic queue, patient WhatsApp alerts, and consultation records active.
+          </div>
+
+          <button class="btn btn-primary btn-block" onclick="openPaymentModal()">
+            ⚡ Pay ₹499 via UPI QR / GPay
+          </button>
+        </div>
+      </div>
+
+      <!-- UPI Payment Modal Sheet -->
+      <div class="modal-overlay" id="paymentModal">
+        <div class="modal-sheet">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-size: 16px; font-weight: 800; color: #111827;">Docway ₹499 Renewal</div>
+            <button style="background: none; border: none; font-size: 18px; cursor: pointer;" onclick="closePaymentModal()">✕</button>
+          </div>
+
+          <div style="font-size: 11px; color: var(--text-muted); text-align: center;">Scan with GPay, PhonePe, Paytm, or BHIM:</div>
+          
+          <div class="qr-box">
+            <svg width="120" height="120" viewBox="0 0 100 100">
+              <rect x="10" y="10" width="30" height="30" fill="#0073E6" />
+              <rect x="60" y="10" width="30" height="30" fill="#0073E6" />
+              <rect x="10" y="60" width="30" height="30" fill="#0073E6" />
+              <rect x="20" y="20" width="10" height="10" fill="#FFF" />
+              <rect x="70" y="20" width="10" height="10" fill="#FFF" />
+              <rect x="20" y="70" width="10" height="10" fill="#FFF" />
+              <rect x="50" y="50" width="15" height="15" fill="#0059B2" />
+              <rect x="70" y="70" width="20" height="20" fill="#0073E6" />
+            </svg>
+          </div>
+
+          <div style="text-align: center; font-size: 12px; font-weight: 700; color: #111827;">
+            UPI ID: <span style="color: var(--brand-primary);">docway@okaxis</span> 
+            <button style="border: none; background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-size: 10px; cursor: pointer;" onclick="alert('UPI ID copied!')">Copy</button>
+          </div>
+
+          <!-- Step 3: Enter UTR & Screenshot -->
+          <div style="margin-top: 14px;">
+            <input type="text" placeholder="Enter 12-Digit UPI UTR / Ref Number" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; margin-bottom: 8px;">
+            <button class="btn btn-outline btn-block" style="font-size: 11px; margin-bottom: 8px;" onclick="alert('File picker opened: Screenshot selected!')">
+              📷 Upload Payment Screenshot
+            </button>
+            <button class="btn btn-primary btn-block" onclick="submitProof()">
+              Submit for Admin Verification
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Side: Design Decisions & Live UX Controller -->
+    <div class="ux-notes-panel">
+      <div style="font-size: 18px; font-weight: 700; color: #F8FAFC; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span>Docway UX Architecture</span>
+        <span style="background: rgba(0, 115, 230, 0.2); color: #60A5FA; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;">Original Brand Color</span>
+      </div>
+      <p style="font-size: 13px; color: #94A3B8; line-height: 1.5;">
+        All original Docway colors (<b>#0073E6</b> primary blue, <b>#0059B2</b> deep blue, <b>#E6F0FD</b> soft blue) have been preserved while optimizing the micro-interactions, data entry speed, and queue visualization.
+      </p>
+
+      <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+        <li style="position: relative; padding-left: 24px; font-size: 13.5px; line-height: 1.5;"><span style="position: absolute; left: 0; color: #60A5FA; font-weight: 800;">✓</span><b>30-Second Prescription Pad:</b> Clickable dosage pills (<code>1-0-0</code>, <code>After Food</code>, <code>30 Days</code>) and Follow-up pills eliminate typing.</li>
+        <li style="position: relative; padding-left: 24px; font-size: 13.5px; line-height: 1.5;"><span style="position: absolute; left: 0; color: #60A5FA; font-weight: 800;">✓</span><b>Queue Progress Tracker:</b> Visual 4-step stepper with dynamic ETA calculator.</li>
+        <li style="position: relative; padding-left: 24px; font-size: 13.5px; line-height: 1.5;"><span style="position: absolute; left: 0; color: #60A5FA; font-weight: 800;">✓</span><b>Doctor Delay Slider:</b> Instant schedule adjustment (<code>+15m</code>, <code>+30m</code>).</li>
+        <li style="position: relative; padding-left: 24px; font-size: 13.5px; line-height: 1.5;"><span style="position: absolute; left: 0; color: #60A5FA; font-weight: 800;">✓</span><b>Fixed ₹499 Membership:</b> Instant UPI QR modal with UTR entry and proof upload.</li>
+      </ul>
+
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="font-size: 12px; font-weight: 700; color: #F8FAFC; margin-bottom: 8px;">🧪 Live UX Test Controls</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-primary" style="flex:1; font-size: 11px;" onclick="simulateLateDoctor()">Simulate Doctor Delay (+20m)</button>
+          <button class="btn btn-outline" style="flex:1; font-size: 11px; color:white; background: #334155; border:none;" onclick="resetDelay()">Reset Schedule</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    function switchPortal(portalId) {
+      document.querySelectorAll('.portal-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.screen-content').forEach(s => s.classList.remove('active'));
+
+      event.currentTarget.classList.add('active');
+      document.getElementById('screen-' + portalId).classList.add('active');
+    }
+
+    function togglePill(el) {
+      el.classList.toggle('selected');
+    }
+
+    function selectFollowUp(el, value) {
+      el.parentElement.querySelectorAll('.dosage-pill').forEach(p => p.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function addDoctorDelay(minutes) {
+      const finish = document.getElementById('estFinishTime');
+      const badge = document.getElementById('doctorStatusBadge');
+      const alertBox = document.getElementById('patientDelayAlert');
+      const eta = document.getElementById('patientEta');
+
+      if (minutes > 0) {
+        finish.innerText = `01:${15 + minutes} PM (+${minutes}m)`;
+        badge.className = "status-pill delayed";
+        badge.innerHTML = `<span class="status-dot"></span> Running Late (+${minutes}m)`;
+        alertBox.style.display = "block";
+        eta.innerText = `10:${35 + minutes} AM`;
+        alert(`Doctor marked ${minutes}m delay! All patients notified.`);
+      } else {
+        finish.innerText = "01:15 PM";
+        badge.className = "status-pill online";
+        badge.innerHTML = `<span class="status-dot pulse"></span> In Clinic`;
+        alertBox.style.display = "none";
+        eta.innerText = "10:35 AM";
+      }
+    }
+
+    function simulateLateDoctor() {
+      addDoctorDelay(20);
+      switchPortal('patient');
+      document.querySelectorAll('.portal-btn')[1].classList.add('active');
+    }
+
+    function resetDelay() {
+      addDoctorDelay(0);
+    }
+
+    function completeConsultation() {
+      alert("✓ Prescription saved & sent to James Wilson!\nCalling Token #05 (Emily Davis)...");
+    }
+
+    function openPaymentModal() {
+      document.getElementById('paymentModal').classList.add('active');
+    }
+
+    function closePaymentModal() {
+      document.getElementById('paymentModal').classList.remove('active');
+    }
+
+    function submitProof() {
+      alert("✓ Payment proof submitted! Admin will verify and activate your 30-day subscription.");
+      closePaymentModal();
+    }
+
+    function showPatientView(view) {
+      const homeView = document.getElementById('patientViewHome');
+      const bookView = document.getElementById('patientViewBook');
+      const btnHome = document.getElementById('btnPatientHomeTab');
+      const btnBook = document.getElementById('btnPatientBookTab');
+
+      if (view === 'book') {
+        homeView.style.display = 'none';
+        bookView.style.display = 'block';
+        btnHome.style.background = 'transparent';
+        btnHome.style.color = '#64748B';
+        btnBook.style.background = 'white';
+        btnBook.style.color = '#0073E6';
+      } else {
+        homeView.style.display = 'block';
+        bookView.style.display = 'none';
+        btnHome.style.background = 'white';
+        btnHome.style.color = '#0073E6';
+        btnBook.style.background = 'transparent';
+        btnBook.style.color = '#64748B';
+      }
+    }
+
+    function openWalkInModal() {
+      const name = prompt("Enter Walk-in Patient Name:", "Robert Fox");
+      if (name) {
+        alert(`✓ Token #19 generated for ${name}!\nAccess Code sent via SMS.`);
+      }
+    }
+  </script>
+</body>
+</html>
