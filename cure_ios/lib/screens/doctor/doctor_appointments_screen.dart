@@ -487,7 +487,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
         ),
         content: Text(
           "Do you want to mark $patientName (Slot #$slotNo • $slotTime) as No-Show?",
-          style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceSecondary),
+          style: const TextStyle(fontSize: 14, color: AppColors.muted),
         ),
         actions: [
           TextButton(

@@ -271,6 +271,27 @@ class BookedSchedulePatientsNotifier extends StateNotifier<List<BookedPatientSch
       return p;
     }).toList();
   }
+
+  void updatePatientStatus(String patientId, String status) {
+    state = state.map((p) {
+      if (p.id == patientId) {
+        return BookedPatientScheduleItem(
+          id: p.id,
+          slotNumber: p.slotNumber,
+          name: p.name,
+          phone: p.phone,
+          age: p.age,
+          gender: p.gender,
+          date: p.date,
+          slotTime: p.slotTime,
+          isWalkIn: p.isWalkIn,
+          status: status,
+          loginCode: p.loginCode,
+        );
+      }
+      return p;
+    }).toList();
+  }
 }
 
 final bookedSchedulePatientsProvider =
