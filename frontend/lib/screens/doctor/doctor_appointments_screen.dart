@@ -211,7 +211,7 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // Appointments Table
+            // Appointments Cards List (2-Line Doctor Friendly Layout)
             if (displayRows.isEmpty)
               Container(
                 width: double.infinity,
@@ -244,78 +244,226 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
                 ),
               )
             else
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: const [
-                    BoxShadow(color: Color(0x05000000), blurRadius: 4, offset: Offset(0, 2)),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Table(
-                    columnWidths: const {
-                      0: FlexColumnWidth(1.1), // Slot No.
-                      1: FlexColumnWidth(2.5), // Patient Name
-                      2: FlexColumnWidth(1.0), // Age
-                      3: FlexColumnWidth(2.2), // Booked Slot Time
-                    },
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    children: [
-                      // Table Header
-                      TableRow(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF1F5F9),
-                          border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),
-                        ),
-                        children: [
-                          _buildHeaderCell("Slot No."),
-                          _buildHeaderCell("Patient Name"),
-                          _buildHeaderCell("Age"),
-                          _buildHeaderCell("Booked Slot Time"),
-                        ],
-                      ),
-                      // Table Data Rows
-                      ...displayRows.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final row = entry.value;
-                        final patientId = row['id']?.toString() ?? '';
-                        final isEven = index % 2 == 0;
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: displayRows.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final row = displayRows[index];
+                  final patientId = row['id']?.toString() ?? '';
+                  final patientName = row['name']?.toString() ?? 'Patient';
+                  final slotNo = (row['slotNo'] as num?)?.toInt() ?? (index + 1);
+                  final slotTime = row['time']?.toString() ?? '';
+                  final age = row['age']?.toString() ?? '—';
+                  final isWalkIn = row['isWalkIn'] == true;
+                  final isNoShow = row['status'] == 'no_show';
 
-                        return TableRow(
-                          decoration: BoxDecoration(
-                            color: isEven ? Colors.white : const Color(0xFFFAFAFA),
-                            border: const Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
-                          ),
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: isNoShow ? const Color(0xFFFFF5F5) : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isNoShow ? const Color(0xFFFECACA) : const Color(0xFFE2E8F0),
+                        width: 1.2,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x06000000),
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // LINE 1: Slot No. | Patient Name & Age | Booked Slot Time
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            _buildDataCell(
-                              row['slotNo'].toString(),
-                              isBold: true,
-                              color: const Color(0xFF0F766E),
-                              onTap: () => _openConsultationNotes(patientId),
+                            // Slot Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isNoShow ? const Color(0xFFE2E8F0) : const Color(0xFFE6F4F2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                "Slot $slotNo",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: isNoShow ? const Color(0xFF64748B) : const Color(0xFF0F766E),
+                                ),
+                              ),
                             ),
-                            _buildPatientNameCell(
-                              row['name'].toString(),
-                              row['isWalkIn'] == true,
-                              onTap: () => _openConsultationNotes(patientId),
+                            const SizedBox(width: 10),
+
+                            // Patient Name & Age
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      patientName,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: isNoShow ? const Color(0xFF94A3B8) : const Color(0xFF1E293B),
+                                        decoration: isNoShow ? TextDecoration.lineThrough : null,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "($age yrs)",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: isNoShow ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  if (isWalkIn) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEF3C7),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        "Walk-in",
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF92400E),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                            _buildDataCell(
-                              row['age'].toString(),
-                              onTap: () => _openConsultationNotes(patientId),
-                            ),
-                            _buildDataCell(
-                              row['time'].toString(),
-                              color: const Color(0xFF334155),
-                              onTap: () => _openConsultationNotes(patientId),
+
+                            // Booked Slot Time
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isNoShow ? const Color(0xFFF1F5F9) : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.access_time_filled,
+                                    size: 13,
+                                    color: isNoShow ? const Color(0xFF94A3B8) : const Color(0xFF0F766E),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    slotTime,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: isNoShow ? const Color(0xFF94A3B8) : const Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
-                        );
-                      }),
-                    ],
-                  ),
-                ),
+                        ),
+
+                        const SizedBox(height: 10),
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        const SizedBox(height: 10),
+
+                        // LINE 2: ACTION BUTTONS (Consult & No Show)
+                        if (isNoShow)
+                          InkWell(
+                            onTap: () => _restorePatient(patientId, patientName),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEE2E2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.person_off_rounded, size: 15, color: Color(0xFFDC2626)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    "Marked as No-Show · Tap to Restore",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFDC2626),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Row(
+                            children: [
+                              // 1. Consult Button
+                              Expanded(
+                                flex: 3,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _openConsultationNotes(patientId),
+                                  icon: const Icon(Icons.medical_services_outlined, size: 16),
+                                  label: const Text(
+                                    "Consult",
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0F766E),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+
+                              // 2. No Show Button
+                              Expanded(
+                                flex: 2,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _confirmNoShow(patientId, patientName, slotNo, slotTime),
+                                  icon: const Icon(Icons.person_off_outlined, size: 16, color: Color(0xFFE11D48)),
+                                  label: const Text(
+                                    "No Show",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFFE11D48),
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: Color(0xFFFFCDD2)),
+                                    backgroundColor: const Color(0xFFFFF1F2),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  );
+                },
               ),
 
             const SizedBox(height: 40),
@@ -325,62 +473,70 @@ class _DoctorAppointmentsScreenState extends ConsumerState<DoctorAppointmentsScr
     );
   }
 
-  Widget _buildHeaderCell(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-          color: Color(0xFF1E293B),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPatientNameCell(String name, bool isWalkIn, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+  Future<void> _confirmNoShow(String patientId, String patientName, int slotNo, String slotTime) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
           children: [
-            Flexible(
-              child: Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F766E),
-                  decoration: TextDecoration.underline,
-                  decorationColor: Color(0x600F766E),
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.edit_note, size: 16, color: Color(0xFF0F766E)),
+            Icon(Icons.person_off_rounded, color: Color(0xFFDC2626), size: 24),
+            SizedBox(width: 8),
+            Text("Mark as No-Show?", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
           ],
         ),
+        content: Text(
+          "Do you want to mark $patientName (Slot #$slotNo • $slotTime) as No-Show?",
+          style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.muted)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.person_off_rounded, size: 16),
+            label: const Text("Mark No-Show"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
       ),
     );
-  }
 
-  Widget _buildDataCell(String text, {bool isBold = false, Color? color, VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-            color: color ?? const Color(0xFF334155),
+    if (confirmed == true && mounted) {
+      ref.read(bookedSchedulePatientsProvider.notifier).updatePatientStatus(patientId, 'no_show');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("$patientName marked as No-Show"),
+          backgroundColor: const Color(0xFFDC2626),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: "Undo",
+            textColor: Colors.white,
+            onPressed: () {
+              ref.read(bookedSchedulePatientsProvider.notifier).updatePatientStatus(patientId, 'scheduled');
+            },
           ),
         ),
-      ),
-    );
+      );
+    }
+  }
+
+  void _restorePatient(String patientId, String patientName) {
+    ref.read(bookedSchedulePatientsProvider.notifier).updatePatientStatus(patientId, 'scheduled');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("$patientName restored to Scheduled"),
+          backgroundColor: const Color(0xFF0F766E),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }
