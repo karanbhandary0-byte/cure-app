@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
-import '../utils/web_url_helper.dart';
 
 class RoleSelectorScreen extends ConsumerStatefulWidget {
   const RoleSelectorScreen({super.key});
@@ -96,75 +95,6 @@ class _RoleSelectorScreenState extends ConsumerState<RoleSelectorScreen> {
                   // Cards
                   Column(
                     children: [
-                      Container(
-                        margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0073E6), Color(0xFF0059B2)],
-                          ),
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0073E6).withOpacity(0.4),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              openWebUrl('prototype.html');
-                            },
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            child: Padding(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.auto_awesome_rounded,
-                                      color: Colors.white,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.md),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "View Interactive UI/UX Prototype ✨",
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        SizedBox(height: 2),
-                                        Text(
-                                          "Doctor, Patient, Staff & ₹499 Subscription Flows",
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                       _RoleCard(
                         key: const Key("select-doctor-button"),
                         icon: Icons.medical_services_outlined,
